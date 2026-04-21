@@ -49,6 +49,7 @@ export type Database = {
       developments: {
         Row: {
           address: string | null
+          area_geojson: Json | null
           category: Database["public"]["Enums"]["dev_category"]
           created_at: string
           description: string
@@ -61,6 +62,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
           description: string
@@ -73,6 +75,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
           description?: string

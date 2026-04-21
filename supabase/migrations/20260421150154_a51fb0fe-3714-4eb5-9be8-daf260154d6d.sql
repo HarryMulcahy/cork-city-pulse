@@ -1,0 +1,1 @@
+ALTER TABLE public.developments ADD COLUMN area_geojson jsonb;
