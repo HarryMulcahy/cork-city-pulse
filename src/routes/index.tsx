@@ -100,6 +100,8 @@ function HomePage() {
   const [drawMode, setDrawMode] = useState(false);
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
   const [pendingArea, setPendingArea] = useState<LatLng[] | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
   const loadDevs = async () => {
     const { data, error } = await supabase
