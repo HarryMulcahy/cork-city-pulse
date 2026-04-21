@@ -89,7 +89,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson"> & { area_geojson: unknown }>;
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images"> & { area_geojson: unknown; images: string[] | null }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -105,6 +105,7 @@ function HomePage() {
         area_geojson: Array.isArray(r.area_geojson)
           ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
           : null,
+        images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
       }))
     );
