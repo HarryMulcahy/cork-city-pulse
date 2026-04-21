@@ -112,7 +112,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images"> & { area_geojson: unknown; images: string[] | null }>;
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images" | "last_activity_at" | "comments_count"> & { area_geojson: unknown; images: string[] | null }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -122,16 +122,39 @@ function HomePage() {
         .in("id", ids);
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
-    setDevs(
-      rows.map((r) => ({
+
+    // Pull comment activity per development
+    const devIds = rows.map((r) => r.id);
+    const activity: Record<string, { last: string; count: number }> = {};
+    if (devIds.length) {
+      const { data: cs } = await supabase
+        .from("comments")
+        .select("development_id, created_at")
+        .in("development_id", devIds);
+      for (const c of cs ?? []) {
+        const a = activity[c.development_id] ?? { last: "", count: 0 };
+        a.count += 1;
+        if (!a.last || c.created_at > a.last) a.last = c.created_at;
+        activity[c.development_id] = a;
+      }
+    }
+
+    const mapped: Development[] = rows.map((r) => {
+      const a = activity[r.id];
+      const last = a?.last && a.last > r.created_at ? a.last : r.created_at;
+      return {
         ...r,
         area_geojson: Array.isArray(r.area_geojson)
           ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
           : null,
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
-      }))
-    );
+        last_activity_at: last,
+        comments_count: a?.count ?? 0,
+      };
+    });
+    mapped.sort((a, b) => (a.last_activity_at < b.last_activity_at ? 1 : -1));
+    setDevs(mapped);
   };
 
   useEffect(() => {
