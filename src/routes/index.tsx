@@ -161,6 +161,21 @@ function HomePage() {
     loadDevs();
   }, []);
 
+  // Mark a development as read when it gets opened
+  useEffect(() => {
+    if (!selected) return;
+    setReads((prev) => {
+      const next = { ...prev, [selected.id]: selected.last_activity_at };
+      saveReads(next);
+      return next;
+    });
+  }, [selected?.id, selected?.last_activity_at]);
+
+  const isUnread = (d: Development) => {
+    const seen = reads[d.id];
+    return !seen || seen < d.last_activity_at;
+  };
+
   const handlePick = (lat: number, lng: number) => {
     setPickedPoint({ lat, lng });
     setSubmitOpen(true);
