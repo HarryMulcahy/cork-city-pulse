@@ -225,3 +225,39 @@
   0%, 100% { transform: rotate(-45deg) scale(1); }
   50% { transform: rotate(-45deg) scale(1.18); }
 }
+
+/* Development area polygons */
+.dev-area {
+  fill: var(--color-primary);
+  fill-opacity: 0.18;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: fill-opacity 0.18s ease, stroke-width 0.18s ease;
+  cursor: pointer;
+}
+.dev-area:hover {
+  fill-opacity: 0.3;
+  stroke-width: 3;
+}
+.dev-area--selected {
+  fill: var(--color-foreground);
+  fill-opacity: 0.18;
+  stroke: var(--color-foreground);
+  stroke-width: 3;
+}
+.dev-area--draft {
+  fill: var(--color-foreground);
+  fill-opacity: 0.1;
+  stroke: var(--color-foreground);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  cursor: crosshair;
+}
+.dev-vertex {
+  fill: var(--color-background);
+  fill-opacity: 1;
+  stroke: var(--color-foreground);
+  stroke-width: 2;
+}
+

@@ -19,13 +19,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X } from "lucide-react";
+import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check } from "lucide-react";
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
 export const Route = createFileRoute("/")({
   component: HomePage,
 });
+
+type LatLng = { lat: number; lng: number };
 
 interface Development {
   id: string;
@@ -37,6 +39,7 @@ interface Development {
   latitude: number;
   longitude: number;
   address: string | null;
+  area_geojson: LatLng[] | null;
   created_at: string;
   profiles?: { display_name: string } | null;
 }
@@ -70,8 +73,11 @@ function HomePage() {
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
-  const [pickedPoint, setPickedPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
+  const [pendingArea, setPendingArea] = useState<LatLng[] | null>(null);
 
   const loadDevs = async () => {
     const { data, error } = await supabase
@@ -82,7 +88,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Omit<Development, "profiles">[];
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson"> & { area_geojson: unknown }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -92,7 +98,15 @@ function HomePage() {
         .in("id", ids);
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
-    setDevs(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null })));
+    setDevs(
+      rows.map((r) => ({
+        ...r,
+        area_geojson: Array.isArray(r.area_geojson)
+          ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
+          : null,
+        profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
+      }))
+    );
   };
 
   useEffect(() => {
@@ -113,6 +127,31 @@ function HomePage() {
     setPickMode(true);
     setSelected(null);
     toast("Tap anywhere on the map to drop your pin");
+  };
+
+  const startDrawing = () => {
+    setSubmitOpen(false);
+    setDrawPoints([]);
+    setPendingArea(null);
+    setDrawMode(true);
+    toast("Click to add vertices · double-click or 'Finish' when done");
+  };
+
+  const finishDrawing = () => {
+    if (drawPoints.length < 3) {
+      toast.error("Add at least 3 points to make an outline");
+      return;
+    }
+    setPendingArea(drawPoints);
+    setDrawPoints([]);
+    setDrawMode(false);
+    setSubmitOpen(true);
+  };
+
+  const cancelDrawing = () => {
+    setDrawPoints([]);
+    setDrawMode(false);
+    setSubmitOpen(true);
   };
 
   return (
@@ -224,12 +263,22 @@ function HomePage() {
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
             <CorkMap
-              developments={devs}
+              developments={devs.map((d) => ({
+                id: d.id,
+                latitude: d.latitude,
+                longitude: d.longitude,
+                title: d.title,
+                area: d.area_geojson,
+              }))}
               selectedId={selected?.id ?? null}
               onSelect={(id) => setSelected(devs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               onPick={handlePick}
+              drawMode={drawMode}
+              drawPoints={drawPoints}
+              onDrawPoint={(lat, lng) => setDrawPoints((prev) => [...prev, { lat, lng }])}
+              onDrawFinish={finishDrawing}
             />
           </Suspense>
 
@@ -240,6 +289,40 @@ function HomePage() {
               <button
                 onClick={() => setPickMode(false)}
                 className="ml-2 opacity-70 hover:opacity-100"
+                aria-label="Cancel"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+
+          {drawMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-3 py-2 rounded-md shadow-lg flex items-center gap-2 text-sm">
+              <Pencil className="size-4" />
+              <span className="hidden sm:inline">
+                {drawPoints.length < 3
+                  ? `Add ${3 - drawPoints.length} more point${3 - drawPoints.length === 1 ? "" : "s"}`
+                  : `${drawPoints.length} points · double-click to finish`}
+              </span>
+              <span className="sm:hidden font-mono text-xs">{drawPoints.length} pts</span>
+              <button
+                onClick={() => setDrawPoints((p) => p.slice(0, -1))}
+                disabled={drawPoints.length === 0}
+                className="ml-1 px-2 py-1 rounded hover:bg-background/15 disabled:opacity-40 flex items-center gap-1 text-xs"
+              >
+                <Undo2 className="size-3.5" /> Undo
+              </button>
+              <button
+                onClick={finishDrawing}
+                disabled={drawPoints.length < 3}
+                className="px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 flex items-center gap-1 text-xs"
+              >
+                <Check className="size-3.5" /> Finish
+              </button>
+              <button
+                onClick={cancelDrawing}
+                className="opacity-70 hover:opacity-100 ml-1"
+                aria-label="Cancel drawing"
               >
                 <X className="size-4" />
               </button>
@@ -260,7 +343,10 @@ function HomePage() {
         open={submitOpen}
         onOpenChange={(o) => {
           setSubmitOpen(o);
-          if (!o) setPickedPoint(null);
+          if (!o) {
+            setPickedPoint(null);
+            setPendingArea(null);
+          }
         }}
       >
         <DialogContent className="z-[1100]">
@@ -275,9 +361,13 @@ function HomePage() {
           {pickedPoint && (
             <SubmitForm
               point={pickedPoint}
+              area={pendingArea}
+              onClearArea={() => setPendingArea(null)}
+              onStartDraw={startDrawing}
               onDone={() => {
                 setSubmitOpen(false);
                 setPickedPoint(null);
+                setPendingArea(null);
                 loadDevs();
               }}
             />
@@ -288,7 +378,19 @@ function HomePage() {
   );
 }
 
-function SubmitForm({ point, onDone }: { point: { lat: number; lng: number }; onDone: () => void }) {
+function SubmitForm({
+  point,
+  area,
+  onClearArea,
+  onStartDraw,
+  onDone,
+}: {
+  point: LatLng;
+  area: LatLng[] | null;
+  onClearArea: () => void;
+  onStartDraw: () => void;
+  onDone: () => void;
+}) {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -312,6 +414,7 @@ function SubmitForm({ point, onDone }: { point: { lat: number; lng: number }; on
       status,
       latitude: point.lat,
       longitude: point.lng,
+      area_geojson: area && area.length >= 3 ? area : null,
     });
     setLoading(false);
     if (error) {
@@ -351,6 +454,31 @@ function SubmitForm({ point, onDone }: { point: { lat: number; lng: number }; on
             </SelectContent>
           </Select>
         </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Area outline (optional)</Label>
+        {area && area.length >= 3 ? (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
+            <span className="flex items-center gap-2 font-mono">
+              <Pencil className="size-3.5 text-primary" />
+              {area.length}-point outline drawn
+            </span>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={onStartDraw} className="text-primary hover:underline">
+                Redraw
+              </button>
+              <span className="text-muted-foreground">·</span>
+              <button type="button" onClick={onClearArea} className="text-destructive hover:underline">
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Button type="button" variant="outline" onClick={onStartDraw} className="w-full gap-2">
+            <Pencil className="size-4" />
+            Draw outline on map
+          </Button>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="d">Description</Label>
