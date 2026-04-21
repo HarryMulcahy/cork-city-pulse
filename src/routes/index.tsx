@@ -73,8 +73,11 @@ function HomePage() {
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
-  const [pickedPoint, setPickedPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
+  const [pendingArea, setPendingArea] = useState<LatLng[] | null>(null);
 
   const loadDevs = async () => {
     const { data, error } = await supabase
