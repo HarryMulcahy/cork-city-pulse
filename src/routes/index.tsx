@@ -295,6 +295,174 @@ function HomePage() {
             </div>
           )}
         </main>
+
+        {/* Floating sidebar toggle (visible when collapsed) */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-4 left-4 z-[600] flex items-center gap-2 bg-card border border-border shadow-lg rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary transition"
+            aria-label="Open developments list"
+          >
+            <PanelLeftOpen className="size-4" />
+            <span>Developments</span>
+            {unreadCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Collapsible sidebar overlay */}
+        <aside
+          className={`absolute top-0 left-0 bottom-0 z-[550] w-full sm:w-[400px] lg:w-[440px] bg-card border-r border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+          aria-hidden={!sidebarOpen}
+        >
+          <div className="px-5 py-4 border-b border-border">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-primary">
+                Cork City · Live feed
+              </p>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition -mt-1 -mr-1 p-1"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            </div>
+            <h1 className="text-2xl font-bold leading-tight">
+              What's being built<br />in our city.
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              {devs.length} {devs.length === 1 ? "development" : "developments"}
+              {unreadCount > 0 && (
+                <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
+              )}
+            </p>
+            <Button onClick={startPicking} className="w-full mt-4 gap-2">
+              <Plus className="size-4" />
+              Submit a development
+            </Button>
+            {!user && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                <Link to="/auth" className="text-primary hover:underline">
+                  Sign in
+                </Link>{" "}
+                to contribute.
+              </p>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {devs.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+                No developments yet. Be the first to drop a pin.
+              </div>
+            ) : (
+              <ul
+                role="listbox"
+                aria-label="Developments in Cork City"
+                aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
+                className="divide-y divide-border focus:outline-none"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (devs.length === 0) return;
+                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSelected(devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0]);
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSelected(devs[Math.max(0, idx - 1)] ?? devs[0]);
+                  } else if (e.key === "Home") {
+                    e.preventDefault();
+                    setSelected(devs[0]);
+                  } else if (e.key === "End") {
+                    e.preventDefault();
+                    setSelected(devs[devs.length - 1]);
+                  } else if (e.key === "Escape" && selected) {
+                    e.preventDefault();
+                    setSelected(null);
+                  }
+                }}
+              >
+                {devs.map((d) => {
+                  const isSelected = selected?.id === d.id;
+                  const unread = isUnread(d);
+                  return (
+                    <li key={d.id} role="presentation">
+                      <button
+                        id={`dev-item-${d.id}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => setSelected(d)}
+                        className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                          isSelected
+                            ? "bg-secondary border-l-4 border-primary pl-4"
+                            : unread
+                              ? "bg-primary/5 hover:bg-secondary/70 border-l-4 border-primary/60 pl-4"
+                              : "hover:bg-secondary/50 border-l-4 border-transparent"
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          {d.images[0] ? (
+                            <img
+                              src={d.images[0]}
+                              alt=""
+                              loading="lazy"
+                              className="size-20 rounded-md object-cover shrink-0 border border-border"
+                            />
+                          ) : (
+                            <div className="size-20 rounded-md shrink-0 border border-border bg-secondary flex items-center justify-center">
+                              <MapPin className="size-6 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className={`text-sm leading-tight transition-colors ${
+                                unread && !isSelected ? "font-bold text-foreground" : "font-semibold"
+                              } ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
+                                {unread && !isSelected && (
+                                  <span className="inline-block size-2 rounded-full bg-primary mr-1.5 -translate-y-0.5" aria-label="unread" />
+                                )}
+                                {d.title}
+                              </h3>
+                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
+                                {statusLabel(d.status)}
+                              </Badge>
+                            </div>
+                            <p className={`text-xs line-clamp-2 ${unread && !isSelected ? "text-foreground/80" : "text-muted-foreground"}`}>
+                              {d.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground font-mono flex-wrap">
+                              <span>{categoryLabel(d.category)}</span>
+                              <span>·</span>
+                              <span>{d.profiles?.display_name ?? "anon"}</span>
+                              {d.comments_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span className={`flex items-center gap-1 ${unread ? "text-primary font-semibold" : ""}`}>
+                                    <MessageSquare className="size-3" />
+                                    {d.comments_count}
+                                  </span>
+                                </>
+                              )}
+                              <span>·</span>
+                              <span>{formatRelative(d.last_activity_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </aside>
       </div>
 
       {/* Detail sheet */}
