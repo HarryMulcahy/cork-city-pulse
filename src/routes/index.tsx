@@ -85,7 +85,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Omit<Development, "profiles">[];
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson"> & { area_geojson: unknown }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -95,7 +95,15 @@ function HomePage() {
         .in("id", ids);
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
-    setDevs(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null })));
+    setDevs(
+      rows.map((r) => ({
+        ...r,
+        area_geojson: Array.isArray(r.area_geojson)
+          ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
+          : null,
+        profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
+      }))
+    );
   };
 
   useEffect(() => {
