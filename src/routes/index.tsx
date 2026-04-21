@@ -663,6 +663,33 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
         )}
       </SheetHeader>
 
+      {dev.images.length > 0 && (
+        <div className="mt-4 -mx-6">
+          <div className="aspect-[4/3] w-full overflow-hidden bg-secondary border-y border-border">
+            <img
+              src={dev.images[0]}
+              alt={dev.title}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {dev.images.length > 1 && (
+            <div className="px-6 mt-2 grid grid-cols-4 gap-2">
+              {dev.images.slice(1).map((src, i) => (
+                <a
+                  key={src}
+                  href={src}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="aspect-square rounded-md overflow-hidden border border-border hover:opacity-80 transition"
+                >
+                  <img src={src} alt={`${dev.title} photo ${i + 2}`} className="h-full w-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 space-y-4">
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>
         <div className="text-xs text-muted-foreground font-mono pt-2 border-t border-border flex items-center justify-between">
