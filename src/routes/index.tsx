@@ -40,6 +40,7 @@ interface Development {
   longitude: number;
   address: string | null;
   area_geojson: LatLng[] | null;
+  images: string[];
   created_at: string;
   profiles?: { display_name: string } | null;
 }
