@@ -167,7 +167,7 @@ export function CorkMap({
             />
           ) : (
             <Polyline
-              positions={drawPoints.map((p) => [p.lat, p.lng])}
+              positions={drawPoints.map((p) => [p.lat, p.lng] as [number, number])}
               pathOptions={{ className: "dev-area dev-area--draft" }}
             />
           )}
