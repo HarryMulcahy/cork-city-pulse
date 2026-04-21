@@ -608,6 +608,9 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [existingImages, setExistingImages] = useState<string[]>(dev.images);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const isOwner = user?.id === dev.user_id;
 
   useEffect(() => {
@@ -617,14 +620,92 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
     setEditAddress(dev.address ?? "");
     setEditCategory(dev.category);
     setEditStatus(dev.status);
+    setExistingImages(dev.images);
+    setNewFiles([]);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return [];
+    });
   }, [dev.id]);
+
+  useEffect(() => () => newPreviews.forEach((u) => URL.revokeObjectURL(u)), [newPreviews]);
+
+  const totalImages = existingImages.length + newFiles.length;
+
+  const addEditFiles = (incoming: FileList | null) => {
+    if (!incoming) return;
+    const accepted: File[] = [];
+    for (const f of Array.from(incoming)) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`${f.name} is over 5MB`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    const room = Math.max(0, 6 - existingImages.length);
+    const combined = [...newFiles, ...accepted].slice(0, room);
+    setNewFiles(combined);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return combined.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeNewFile = (idx: number) => {
+    const next = newFiles.filter((_, i) => i !== idx);
+    setNewFiles(next);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return next.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeExistingImage = (idx: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const saveEdit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isOwner) return;
+    if (!isOwner || !user) return;
     if (editTitle.trim().length < 3) return toast.error("Title is too short");
     if (editDescription.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setSavingEdit(true);
+
+    // Upload any new files
+    const uploadedUrls: string[] = [];
+    for (const file of newFiles) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("development-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        setSavingEdit(false);
+        toast.error(`Image upload failed: ${upErr.message}`);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("development-images").getPublicUrl(path);
+      uploadedUrls.push(pub.publicUrl);
+    }
+
+    // Try to delete removed images from storage (best-effort)
+    const removedUrls = dev.images.filter((u) => !existingImages.includes(u));
+    if (removedUrls.length) {
+      const paths = removedUrls
+        .map((url) => {
+          const marker = "/development-images/";
+          const i = url.indexOf(marker);
+          return i >= 0 ? url.slice(i + marker.length) : null;
+        })
+        .filter((p): p is string => !!p);
+      if (paths.length) {
+        await supabase.storage.from("development-images").remove(paths);
+      }
+    }
+
+    const finalImages = [...existingImages, ...uploadedUrls];
+
     const { error } = await supabase
       .from("developments")
       .update({
@@ -633,11 +714,17 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
         address: editAddress.trim().slice(0, 200) || null,
         category: editCategory,
         status: editStatus,
+        images: finalImages,
       })
       .eq("id", dev.id);
     setSavingEdit(false);
     if (error) return toast.error(error.message);
     toast.success("Development updated");
+    setNewFiles([]);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return [];
+    });
     setEditing(false);
     onChange();
   };
