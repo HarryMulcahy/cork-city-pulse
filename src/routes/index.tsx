@@ -601,6 +601,46 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(dev.title);
+  const [editDescription, setEditDescription] = useState(dev.description);
+  const [editAddress, setEditAddress] = useState(dev.address ?? "");
+  const [editCategory, setEditCategory] = useState<Category>(dev.category);
+  const [editStatus, setEditStatus] = useState<Status>(dev.status);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const isOwner = user?.id === dev.user_id;
+
+  useEffect(() => {
+    setEditing(false);
+    setEditTitle(dev.title);
+    setEditDescription(dev.description);
+    setEditAddress(dev.address ?? "");
+    setEditCategory(dev.category);
+    setEditStatus(dev.status);
+  }, [dev.id]);
+
+  const saveEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isOwner) return;
+    if (editTitle.trim().length < 3) return toast.error("Title is too short");
+    if (editDescription.trim().length < 10) return toast.error("Add a bit more detail to the description");
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({
+        title: editTitle.trim().slice(0, 120),
+        description: editDescription.trim().slice(0, 2000),
+        address: editAddress.trim().slice(0, 200) || null,
+        category: editCategory,
+        status: editStatus,
+      })
+      .eq("id", dev.id);
+    setSavingEdit(false);
+    if (error) return toast.error(error.message);
+    toast.success("Development updated");
+    setEditing(false);
+    onChange();
+  };
 
   const load = async () => {
     const { data } = await supabase
