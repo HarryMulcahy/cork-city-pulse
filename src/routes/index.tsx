@@ -129,6 +129,31 @@ function HomePage() {
     toast("Tap anywhere on the map to drop your pin");
   };
 
+  const startDrawing = () => {
+    setSubmitOpen(false);
+    setDrawPoints([]);
+    setPendingArea(null);
+    setDrawMode(true);
+    toast("Click to add vertices · double-click or 'Finish' when done");
+  };
+
+  const finishDrawing = () => {
+    if (drawPoints.length < 3) {
+      toast.error("Add at least 3 points to make an outline");
+      return;
+    }
+    setPendingArea(drawPoints);
+    setDrawPoints([]);
+    setDrawMode(false);
+    setSubmitOpen(true);
+  };
+
+  const cancelDrawing = () => {
+    setDrawPoints([]);
+    setDrawMode(false);
+    setSubmitOpen(true);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header />
