@@ -263,12 +263,22 @@ function HomePage() {
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
             <CorkMap
-              developments={devs}
+              developments={devs.map((d) => ({
+                id: d.id,
+                latitude: d.latitude,
+                longitude: d.longitude,
+                title: d.title,
+                area: d.area_geojson,
+              }))}
               selectedId={selected?.id ?? null}
               onSelect={(id) => setSelected(devs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               onPick={handlePick}
+              drawMode={drawMode}
+              drawPoints={drawPoints}
+              onDrawPoint={(lat, lng) => setDrawPoints((prev) => [...prev, { lat, lng }])}
+              onDrawFinish={finishDrawing}
             />
           </Suspense>
 
@@ -279,6 +289,40 @@ function HomePage() {
               <button
                 onClick={() => setPickMode(false)}
                 className="ml-2 opacity-70 hover:opacity-100"
+                aria-label="Cancel"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+
+          {drawMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-3 py-2 rounded-md shadow-lg flex items-center gap-2 text-sm">
+              <Pencil className="size-4" />
+              <span className="hidden sm:inline">
+                {drawPoints.length < 3
+                  ? `Add ${3 - drawPoints.length} more point${3 - drawPoints.length === 1 ? "" : "s"}`
+                  : `${drawPoints.length} points · double-click to finish`}
+              </span>
+              <span className="sm:hidden font-mono text-xs">{drawPoints.length} pts</span>
+              <button
+                onClick={() => setDrawPoints((p) => p.slice(0, -1))}
+                disabled={drawPoints.length === 0}
+                className="ml-1 px-2 py-1 rounded hover:bg-background/15 disabled:opacity-40 flex items-center gap-1 text-xs"
+              >
+                <Undo2 className="size-3.5" /> Undo
+              </button>
+              <button
+                onClick={finishDrawing}
+                disabled={drawPoints.length < 3}
+                className="px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 flex items-center gap-1 text-xs"
+              >
+                <Check className="size-3.5" /> Finish
+              </button>
+              <button
+                onClick={cancelDrawing}
+                className="opacity-70 hover:opacity-100 ml-1"
+                aria-label="Cancel drawing"
               >
                 <X className="size-4" />
               </button>
