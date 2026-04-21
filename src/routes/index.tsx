@@ -217,129 +217,14 @@ function HomePage() {
     setSubmitOpen(true);
   };
 
+  const unreadCount = devs.filter(isUnread).length;
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header />
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
-        {/* Sidebar */}
-        <aside className="lg:w-[380px] xl:w-[420px] border-b lg:border-b-0 lg:border-r border-border bg-card flex flex-col min-h-0 max-h-[40vh] lg:max-h-none">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-1">
-              Cork City · Live feed
-            </p>
-            <h1 className="text-2xl font-bold leading-tight">
-              What's being built<br />in our city.
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {devs.length} {devs.length === 1 ? "development" : "developments"} tracked by neighbours.
-            </p>
-            <Button onClick={startPicking} className="w-full mt-4 gap-2">
-              <Plus className="size-4" />
-              Submit a development
-            </Button>
-            {!user && (
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link to="/auth" className="text-primary hover:underline">
-                  Sign in
-                </Link>{" "}
-                to contribute.
-              </p>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {devs.length === 0 ? (
-              <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                No developments yet. Be the first to drop a pin.
-              </div>
-            ) : (
-              <ul
-                role="listbox"
-                aria-label="Developments in Cork City"
-                aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
-                className="divide-y divide-border focus:outline-none"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (devs.length === 0) return;
-                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    const next = devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0];
-                    setSelected(next);
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const prev = devs[Math.max(0, idx - 1)] ?? devs[0];
-                    setSelected(prev);
-                  } else if (e.key === "Home") {
-                    e.preventDefault();
-                    setSelected(devs[0]);
-                  } else if (e.key === "End") {
-                    e.preventDefault();
-                    setSelected(devs[devs.length - 1]);
-                  } else if (e.key === "Escape" && selected) {
-                    e.preventDefault();
-                    setSelected(null);
-                  }
-                }}
-              >
-                {devs.map((d) => {
-                  const isSelected = selected?.id === d.id;
-                  return (
-                    <li key={d.id} role="presentation">
-                      <button
-                        id={`dev-item-${d.id}`}
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => setSelected(d)}
-                        className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
-                          isSelected
-                            ? "bg-secondary border-l-4 border-primary pl-4"
-                            : "hover:bg-secondary/50 border-l-4 border-transparent"
-                        }`}
-                      >
-                        <div className="flex gap-3">
-                          {d.images[0] && (
-                            <img
-                              src={d.images[0]}
-                              alt=""
-                              loading="lazy"
-                              className="size-16 rounded-md object-cover shrink-0 border border-border"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
-                                {d.title}
-                              </h3>
-                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
-                                {statusLabel(d.status)}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
-                              <span>{categoryLabel(d.category)}</span>
-                              <span>·</span>
-                              <span>{d.profiles?.display_name ?? "anon"}</span>
-                              {d.images.length > 1 && (
-                                <>
-                                  <span>·</span>
-                                  <span>{d.images.length} photos</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </aside>
-
-        {/* Map */}
-        <main className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0">
+        {/* Full-screen Map */}
+        <main className="absolute inset-0">
           <Suspense
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
