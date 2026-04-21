@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comments: {
+        Row: {
+          body: string
+          created_at: string
+          development_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          development_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          development_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_development_id_fkey"
+            columns: ["development_id"]
+            isOneToOne: false
+            referencedRelation: "developments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      developments: {
+        Row: {
+          address: string | null
+          category: Database["public"]["Enums"]["dev_category"]
+          created_at: string
+          description: string
+          id: string
+          latitude: number
+          longitude: number
+          status: Database["public"]["Enums"]["dev_status"]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          category?: Database["public"]["Enums"]["dev_category"]
+          created_at?: string
+          description: string
+          id?: string
+          latitude: number
+          longitude: number
+          status?: Database["public"]["Enums"]["dev_status"]
+          title: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          category?: Database["public"]["Enums"]["dev_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          status?: Database["public"]["Enums"]["dev_status"]
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +111,20 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      dev_category:
+        | "residential"
+        | "commercial"
+        | "infrastructure"
+        | "public_space"
+        | "mixed_use"
+        | "other"
+      dev_status:
+        | "proposed"
+        | "planning"
+        | "approved"
+        | "under_construction"
+        | "completed"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +251,23 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      dev_category: [
+        "residential",
+        "commercial",
+        "infrastructure",
+        "public_space",
+        "mixed_use",
+        "other",
+      ],
+      dev_status: [
+        "proposed",
+        "planning",
+        "approved",
+        "under_construction",
+        "completed",
+        "rejected",
+      ],
+    },
   },
 } as const
