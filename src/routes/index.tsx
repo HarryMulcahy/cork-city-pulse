@@ -456,6 +456,31 @@ function SubmitForm({
         </div>
       </div>
       <div className="space-y-1.5">
+        <Label>Area outline (optional)</Label>
+        {area && area.length >= 3 ? (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
+            <span className="flex items-center gap-2 font-mono">
+              <Pencil className="size-3.5 text-primary" />
+              {area.length}-point outline drawn
+            </span>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={onStartDraw} className="text-primary hover:underline">
+                Redraw
+              </button>
+              <span className="text-muted-foreground">·</span>
+              <button type="button" onClick={onClearArea} className="text-destructive hover:underline">
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Button type="button" variant="outline" onClick={onStartDraw} className="w-full gap-2">
+            <Pencil className="size-4" />
+            Draw outline on map
+          </Button>
+        )}
+      </div>
+      <div className="space-y-1.5">
         <Label htmlFor="d">Description</Label>
         <Textarea id="d" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} required rows={5} placeholder="What's being proposed or built? Why does it matter?" />
       </div>
