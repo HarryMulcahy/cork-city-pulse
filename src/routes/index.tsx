@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X } from "lucide-react";
+import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check } from "lucide-react";
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
