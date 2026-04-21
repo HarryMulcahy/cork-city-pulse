@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check } from "lucide-react";
+import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2 } from "lucide-react";
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
@@ -40,6 +40,7 @@ interface Development {
   longitude: number;
   address: string | null;
   area_geojson: LatLng[] | null;
+  images: string[];
   created_at: string;
   profiles?: { display_name: string } | null;
 }
@@ -88,7 +89,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson"> & { area_geojson: unknown }>;
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images"> & { area_geojson: unknown; images: string[] | null }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -104,6 +105,7 @@ function HomePage() {
         area_geojson: Array.isArray(r.area_geojson)
           ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
           : null,
+        images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
       }))
     );
@@ -234,19 +236,37 @@ function HomePage() {
                             : "hover:bg-secondary/50 border-l-4 border-transparent"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
-                            {d.title}
-                          </h3>
-                          <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
-                            {statusLabel(d.status)}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
-                          <span>{categoryLabel(d.category)}</span>
-                          <span>·</span>
-                          <span>{d.profiles?.display_name ?? "anon"}</span>
+                        <div className="flex gap-3">
+                          {d.images[0] && (
+                            <img
+                              src={d.images[0]}
+                              alt=""
+                              loading="lazy"
+                              className="size-16 rounded-md object-cover shrink-0 border border-border"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
+                                {d.title}
+                              </h3>
+                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
+                                {statusLabel(d.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
+                              <span>{categoryLabel(d.category)}</span>
+                              <span>·</span>
+                              <span>{d.profiles?.display_name ?? "anon"}</span>
+                              {d.images.length > 1 && (
+                                <>
+                                  <span>·</span>
+                                  <span>{d.images.length} photos</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </button>
                     </li>
@@ -398,6 +418,38 @@ function SubmitForm({
   const [category, setCategory] = useState<Category>("residential");
   const [status, setStatus] = useState<Status>("proposed");
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  const addFiles = (incoming: FileList | null) => {
+    if (!incoming) return;
+    const accepted: File[] = [];
+    for (const f of Array.from(incoming)) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`${f.name} is over 5MB`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    const combined = [...files, ...accepted].slice(0, 6);
+    setFiles(combined);
+    setPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return combined.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeFile = (idx: number) => {
+    const next = files.filter((_, i) => i !== idx);
+    setFiles(next);
+    setPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return next.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -405,6 +457,24 @@ function SubmitForm({
     if (title.trim().length < 3) return toast.error("Title is too short");
     if (description.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setLoading(true);
+
+    // Upload images first
+    const uploadedUrls: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("development-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        setLoading(false);
+        toast.error(`Image upload failed: ${upErr.message}`);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("development-images").getPublicUrl(path);
+      uploadedUrls.push(pub.publicUrl);
+    }
+
     const { error } = await supabase.from("developments").insert({
       user_id: user.id,
       title: title.trim().slice(0, 120),
@@ -415,6 +485,7 @@ function SubmitForm({
       latitude: point.lat,
       longitude: point.lng,
       area_geojson: area && area.length >= 3 ? area : null,
+      images: uploadedUrls,
     });
     setLoading(false);
     if (error) {
@@ -481,11 +552,45 @@ function SubmitForm({
         )}
       </div>
       <div className="space-y-1.5">
+        <Label>Photos (optional · up to 6)</Label>
+        {previews.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {previews.map((src, i) => (
+              <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                <img src={src} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                  aria-label="Remove photo"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {files.length < 6 && (
+          <label className="flex items-center justify-center gap-2 w-full h-20 rounded-md border-2 border-dashed border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 cursor-pointer transition text-sm text-muted-foreground">
+            <ImagePlus className="size-4" />
+            <span>Add photos · max 5MB each</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+          </label>
+        )}
+      </div>
+      <div className="space-y-1.5">
         <Label htmlFor="d">Description</Label>
         <Textarea id="d" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} required rows={5} placeholder="What's being proposed or built? Why does it matter?" />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Submitting…" : "Add to map"}
+      <Button type="submit" className="w-full gap-2" disabled={loading}>
+        {loading && <Loader2 className="size-4 animate-spin" />}
+        {loading ? (files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
       </Button>
     </form>
   );
@@ -557,6 +662,33 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
           </p>
         )}
       </SheetHeader>
+
+      {dev.images.length > 0 && (
+        <div className="mt-4 -mx-6">
+          <div className="aspect-[4/3] w-full overflow-hidden bg-secondary border-y border-border">
+            <img
+              src={dev.images[0]}
+              alt={dev.title}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {dev.images.length > 1 && (
+            <div className="px-6 mt-2 grid grid-cols-4 gap-2">
+              {dev.images.slice(1).map((src, i) => (
+                <a
+                  key={src}
+                  href={src}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="aspect-square rounded-md overflow-hidden border border-border hover:opacity-80 transition"
+                >
+                  <img src={src} alt={`${dev.title} photo ${i + 2}`} className="h-full w-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 space-y-4">
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>

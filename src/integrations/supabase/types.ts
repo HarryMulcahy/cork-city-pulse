@@ -54,6 +54,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          images: string[]
           latitude: number
           longitude: number
           status: Database["public"]["Enums"]["dev_status"]
@@ -67,6 +68,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          images?: string[]
           latitude: number
           longitude: number
           status?: Database["public"]["Enums"]["dev_status"]
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          images?: string[]
           latitude?: number
           longitude?: number
           status?: Database["public"]["Enums"]["dev_status"]
