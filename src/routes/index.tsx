@@ -378,7 +378,19 @@ function HomePage() {
   );
 }
 
-function SubmitForm({ point, onDone }: { point: { lat: number; lng: number }; onDone: () => void }) {
+function SubmitForm({
+  point,
+  area,
+  onClearArea,
+  onStartDraw,
+  onDone,
+}: {
+  point: LatLng;
+  area: LatLng[] | null;
+  onClearArea: () => void;
+  onStartDraw: () => void;
+  onDone: () => void;
+}) {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -402,6 +414,7 @@ function SubmitForm({ point, onDone }: { point: { lat: number; lng: number }; on
       status,
       latitude: point.lat,
       longitude: point.lng,
+      area_geojson: area && area.length >= 3 ? area : null,
     });
     setLoading(false);
     if (error) {
