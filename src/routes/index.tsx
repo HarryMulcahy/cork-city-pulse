@@ -19,7 +19,44 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2 } from "lucide-react";
+import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+
+const READ_STORAGE_KEY = "cork-dev-reads-v1";
+
+function loadReads(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function formatRelative(iso: string): string {
+  const d = new Date(iso).getTime();
+  if (Number.isNaN(d)) return "";
+  const diff = Date.now() - d;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  const wk = Math.floor(day / 7);
+  if (wk < 5) return `${wk}w ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(day / 365)}y ago`;
+}
+
+function saveReads(r: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(r));
+  } catch {
+    // ignore
+  }
+}
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
@@ -42,6 +79,8 @@ interface Development {
   area_geojson: LatLng[] | null;
   images: string[];
   created_at: string;
+  last_activity_at: string;
+  comments_count: number;
   profiles?: { display_name: string } | null;
 }
 
@@ -79,6 +118,8 @@ function HomePage() {
   const [drawMode, setDrawMode] = useState(false);
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
   const [pendingArea, setPendingArea] = useState<LatLng[] | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
   const loadDevs = async () => {
     const { data, error } = await supabase
@@ -89,7 +130,7 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images"> & { area_geojson: unknown; images: string[] | null }>;
+    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images" | "last_activity_at" | "comments_count"> & { area_geojson: unknown; images: string[] | null }>;
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -99,21 +140,59 @@ function HomePage() {
         .in("id", ids);
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
-    setDevs(
-      rows.map((r) => ({
+
+    // Pull comment activity per development
+    const devIds = rows.map((r) => r.id);
+    const activity: Record<string, { last: string; count: number }> = {};
+    if (devIds.length) {
+      const { data: cs } = await supabase
+        .from("comments")
+        .select("development_id, created_at")
+        .in("development_id", devIds);
+      for (const c of cs ?? []) {
+        const a = activity[c.development_id] ?? { last: "", count: 0 };
+        a.count += 1;
+        if (!a.last || c.created_at > a.last) a.last = c.created_at;
+        activity[c.development_id] = a;
+      }
+    }
+
+    const mapped: Development[] = rows.map((r) => {
+      const a = activity[r.id];
+      const last = a?.last && a.last > r.created_at ? a.last : r.created_at;
+      return {
         ...r,
         area_geojson: Array.isArray(r.area_geojson)
           ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
           : null,
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
-      }))
-    );
+        last_activity_at: last,
+        comments_count: a?.count ?? 0,
+      };
+    });
+    mapped.sort((a, b) => (a.last_activity_at < b.last_activity_at ? 1 : -1));
+    setDevs(mapped);
   };
 
   useEffect(() => {
     loadDevs();
   }, []);
+
+  // Mark a development as read when it gets opened
+  useEffect(() => {
+    if (!selected) return;
+    setReads((prev) => {
+      const next = { ...prev, [selected.id]: selected.last_activity_at };
+      saveReads(next);
+      return next;
+    });
+  }, [selected?.id, selected?.last_activity_at]);
+
+  const isUnread = (d: Development) => {
+    const seen = reads[d.id];
+    return !seen || seen < d.last_activity_at;
+  };
 
   const handlePick = (lat: number, lng: number) => {
     setPickedPoint({ lat, lng });
@@ -156,129 +235,14 @@ function HomePage() {
     setSubmitOpen(true);
   };
 
+  const unreadCount = devs.filter(isUnread).length;
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header />
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
-        {/* Sidebar */}
-        <aside className="lg:w-[380px] xl:w-[420px] border-b lg:border-b-0 lg:border-r border-border bg-card flex flex-col min-h-0 max-h-[40vh] lg:max-h-none">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-1">
-              Cork City · Live feed
-            </p>
-            <h1 className="text-2xl font-bold leading-tight">
-              What's being built<br />in our city.
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {devs.length} {devs.length === 1 ? "development" : "developments"} tracked by neighbours.
-            </p>
-            <Button onClick={startPicking} className="w-full mt-4 gap-2">
-              <Plus className="size-4" />
-              Submit a development
-            </Button>
-            {!user && (
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link to="/auth" className="text-primary hover:underline">
-                  Sign in
-                </Link>{" "}
-                to contribute.
-              </p>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {devs.length === 0 ? (
-              <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                No developments yet. Be the first to drop a pin.
-              </div>
-            ) : (
-              <ul
-                role="listbox"
-                aria-label="Developments in Cork City"
-                aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
-                className="divide-y divide-border focus:outline-none"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (devs.length === 0) return;
-                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    const next = devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0];
-                    setSelected(next);
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const prev = devs[Math.max(0, idx - 1)] ?? devs[0];
-                    setSelected(prev);
-                  } else if (e.key === "Home") {
-                    e.preventDefault();
-                    setSelected(devs[0]);
-                  } else if (e.key === "End") {
-                    e.preventDefault();
-                    setSelected(devs[devs.length - 1]);
-                  } else if (e.key === "Escape" && selected) {
-                    e.preventDefault();
-                    setSelected(null);
-                  }
-                }}
-              >
-                {devs.map((d) => {
-                  const isSelected = selected?.id === d.id;
-                  return (
-                    <li key={d.id} role="presentation">
-                      <button
-                        id={`dev-item-${d.id}`}
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => setSelected(d)}
-                        className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
-                          isSelected
-                            ? "bg-secondary border-l-4 border-primary pl-4"
-                            : "hover:bg-secondary/50 border-l-4 border-transparent"
-                        }`}
-                      >
-                        <div className="flex gap-3">
-                          {d.images[0] && (
-                            <img
-                              src={d.images[0]}
-                              alt=""
-                              loading="lazy"
-                              className="size-16 rounded-md object-cover shrink-0 border border-border"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
-                                {d.title}
-                              </h3>
-                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
-                                {statusLabel(d.status)}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
-                              <span>{categoryLabel(d.category)}</span>
-                              <span>·</span>
-                              <span>{d.profiles?.display_name ?? "anon"}</span>
-                              {d.images.length > 1 && (
-                                <>
-                                  <span>·</span>
-                                  <span>{d.images.length} photos</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </aside>
-
-        {/* Map */}
-        <main className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0">
+        {/* Full-screen Map */}
+        <main className="absolute inset-0">
           <Suspense
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
@@ -349,6 +313,174 @@ function HomePage() {
             </div>
           )}
         </main>
+
+        {/* Floating sidebar toggle (visible when collapsed) */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-4 left-4 z-[600] flex items-center gap-2 bg-card border border-border shadow-lg rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary transition"
+            aria-label="Open developments list"
+          >
+            <PanelLeftOpen className="size-4" />
+            <span>Developments</span>
+            {unreadCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Collapsible sidebar overlay */}
+        <aside
+          className={`absolute top-0 left-0 bottom-0 z-[550] w-full sm:w-[400px] lg:w-[440px] bg-card border-r border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+          aria-hidden={!sidebarOpen}
+        >
+          <div className="px-5 py-4 border-b border-border">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-primary">
+                Cork City · Live feed
+              </p>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition -mt-1 -mr-1 p-1"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            </div>
+            <h1 className="text-2xl font-bold leading-tight">
+              What's being built<br />in our city.
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              {devs.length} {devs.length === 1 ? "development" : "developments"}
+              {unreadCount > 0 && (
+                <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
+              )}
+            </p>
+            <Button onClick={startPicking} className="w-full mt-4 gap-2">
+              <Plus className="size-4" />
+              Submit a development
+            </Button>
+            {!user && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                <Link to="/auth" className="text-primary hover:underline">
+                  Sign in
+                </Link>{" "}
+                to contribute.
+              </p>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {devs.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+                No developments yet. Be the first to drop a pin.
+              </div>
+            ) : (
+              <ul
+                role="listbox"
+                aria-label="Developments in Cork City"
+                aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
+                className="divide-y divide-border focus:outline-none"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (devs.length === 0) return;
+                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSelected(devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0]);
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSelected(devs[Math.max(0, idx - 1)] ?? devs[0]);
+                  } else if (e.key === "Home") {
+                    e.preventDefault();
+                    setSelected(devs[0]);
+                  } else if (e.key === "End") {
+                    e.preventDefault();
+                    setSelected(devs[devs.length - 1]);
+                  } else if (e.key === "Escape" && selected) {
+                    e.preventDefault();
+                    setSelected(null);
+                  }
+                }}
+              >
+                {devs.map((d) => {
+                  const isSelected = selected?.id === d.id;
+                  const unread = isUnread(d);
+                  return (
+                    <li key={d.id} role="presentation">
+                      <button
+                        id={`dev-item-${d.id}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => setSelected(d)}
+                        className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                          isSelected
+                            ? "bg-secondary border-l-4 border-primary pl-4"
+                            : unread
+                              ? "bg-primary/5 hover:bg-secondary/70 border-l-4 border-primary/60 pl-4"
+                              : "hover:bg-secondary/50 border-l-4 border-transparent"
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          {d.images[0] ? (
+                            <img
+                              src={d.images[0]}
+                              alt=""
+                              loading="lazy"
+                              className="size-20 rounded-md object-cover shrink-0 border border-border"
+                            />
+                          ) : (
+                            <div className="size-20 rounded-md shrink-0 border border-border bg-secondary flex items-center justify-center">
+                              <MapPin className="size-6 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className={`text-sm leading-tight transition-colors ${
+                                unread && !isSelected ? "font-bold text-foreground" : "font-semibold"
+                              } ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
+                                {unread && !isSelected && (
+                                  <span className="inline-block size-2 rounded-full bg-primary mr-1.5 -translate-y-0.5" aria-label="unread" />
+                                )}
+                                {d.title}
+                              </h3>
+                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
+                                {statusLabel(d.status)}
+                              </Badge>
+                            </div>
+                            <p className={`text-xs line-clamp-2 ${unread && !isSelected ? "text-foreground/80" : "text-muted-foreground"}`}>
+                              {d.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground font-mono flex-wrap">
+                              <span>{categoryLabel(d.category)}</span>
+                              <span>·</span>
+                              <span>{d.profiles?.display_name ?? "anon"}</span>
+                              {d.comments_count > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span className={`flex items-center gap-1 ${unread ? "text-primary font-semibold" : ""}`}>
+                                    <MessageSquare className="size-3" />
+                                    {d.comments_count}
+                                  </span>
+                                </>
+                              )}
+                              <span>·</span>
+                              <span>{formatRelative(d.last_activity_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </aside>
       </div>
 
       {/* Detail sheet */}
