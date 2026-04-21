@@ -236,19 +236,37 @@ function HomePage() {
                             : "hover:bg-secondary/50 border-l-4 border-transparent"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
-                            {d.title}
-                          </h3>
-                          <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
-                            {statusLabel(d.status)}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
-                          <span>{categoryLabel(d.category)}</span>
-                          <span>·</span>
-                          <span>{d.profiles?.display_name ?? "anon"}</span>
+                        <div className="flex gap-3">
+                          {d.images[0] && (
+                            <img
+                              src={d.images[0]}
+                              alt=""
+                              loading="lazy"
+                              className="size-16 rounded-md object-cover shrink-0 border border-border"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
+                                {d.title}
+                              </h3>
+                              <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
+                                {statusLabel(d.status)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
+                              <span>{categoryLabel(d.category)}</span>
+                              <span>·</span>
+                              <span>{d.profiles?.display_name ?? "anon"}</span>
+                              {d.images.length > 1 && (
+                                <>
+                                  <span>·</span>
+                                  <span>{d.images.length} photos</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </button>
                     </li>
