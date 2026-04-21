@@ -588,8 +588,9 @@ function SubmitForm({
         <Label htmlFor="d">Description</Label>
         <Textarea id="d" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} required rows={5} placeholder="What's being proposed or built? Why does it matter?" />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Submitting…" : "Add to map"}
+      <Button type="submit" className="w-full gap-2" disabled={loading}>
+        {loading && <Loader2 className="size-4 animate-spin" />}
+        {loading ? (files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
       </Button>
     </form>
   );
