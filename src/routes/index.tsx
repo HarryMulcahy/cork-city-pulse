@@ -418,6 +418,38 @@ function SubmitForm({
   const [category, setCategory] = useState<Category>("residential");
   const [status, setStatus] = useState<Status>("proposed");
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  const addFiles = (incoming: FileList | null) => {
+    if (!incoming) return;
+    const accepted: File[] = [];
+    for (const f of Array.from(incoming)) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`${f.name} is over 5MB`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    const combined = [...files, ...accepted].slice(0, 6);
+    setFiles(combined);
+    setPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return combined.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeFile = (idx: number) => {
+    const next = files.filter((_, i) => i !== idx);
+    setFiles(next);
+    setPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return next.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -425,6 +457,24 @@ function SubmitForm({
     if (title.trim().length < 3) return toast.error("Title is too short");
     if (description.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setLoading(true);
+
+    // Upload images first
+    const uploadedUrls: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("development-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        setLoading(false);
+        toast.error(`Image upload failed: ${upErr.message}`);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("development-images").getPublicUrl(path);
+      uploadedUrls.push(pub.publicUrl);
+    }
+
     const { error } = await supabase.from("developments").insert({
       user_id: user.id,
       title: title.trim().slice(0, 120),
@@ -435,6 +485,7 @@ function SubmitForm({
       latitude: point.lat,
       longitude: point.lng,
       area_geojson: area && area.length >= 3 ? area : null,
+      images: uploadedUrls,
     });
     setLoading(false);
     if (error) {
