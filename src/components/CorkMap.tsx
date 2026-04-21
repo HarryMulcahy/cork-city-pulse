@@ -3,13 +3,19 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-lea
 import L from "leaflet";
 import { CORK_CENTER, CORK_BOUNDS } from "@/lib/constants";
 
-const pinIcon = L.divIcon({
-  className: "",
-  html: '<div class="dev-pin"></div>',
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-  popupAnchor: [0, -28],
-});
+function makePinIcon(variant: "default" | "selected" | "picked" = "default") {
+  return L.divIcon({
+    className: "",
+    html: `<div class="dev-pin dev-pin--${variant}" aria-hidden="true"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
+  });
+}
+
+const pinIconDefault = makePinIcon("default");
+const pinIconSelected = makePinIcon("selected");
+const pinIconPicked = makePinIcon("picked");
 
 interface DevPoint {
   id: string;
