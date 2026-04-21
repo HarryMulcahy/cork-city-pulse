@@ -343,7 +343,10 @@ function HomePage() {
         open={submitOpen}
         onOpenChange={(o) => {
           setSubmitOpen(o);
-          if (!o) setPickedPoint(null);
+          if (!o) {
+            setPickedPoint(null);
+            setPendingArea(null);
+          }
         }}
       >
         <DialogContent className="z-[1100]">
@@ -358,9 +361,13 @@ function HomePage() {
           {pickedPoint && (
             <SubmitForm
               point={pickedPoint}
+              area={pendingArea}
+              onClearArea={() => setPendingArea(null)}
+              onStartDraw={startDrawing}
               onDone={() => {
                 setSubmitOpen(false);
                 setPickedPoint(null);
+                setPendingArea(null);
                 loadDevs();
               }}
             />
