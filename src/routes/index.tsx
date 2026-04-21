@@ -608,6 +608,9 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [existingImages, setExistingImages] = useState<string[]>(dev.images);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const isOwner = user?.id === dev.user_id;
 
   useEffect(() => {
@@ -617,14 +620,92 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
     setEditAddress(dev.address ?? "");
     setEditCategory(dev.category);
     setEditStatus(dev.status);
+    setExistingImages(dev.images);
+    setNewFiles([]);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return [];
+    });
   }, [dev.id]);
+
+  useEffect(() => () => newPreviews.forEach((u) => URL.revokeObjectURL(u)), [newPreviews]);
+
+  const totalImages = existingImages.length + newFiles.length;
+
+  const addEditFiles = (incoming: FileList | null) => {
+    if (!incoming) return;
+    const accepted: File[] = [];
+    for (const f of Array.from(incoming)) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`${f.name} is over 5MB`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    const room = Math.max(0, 6 - existingImages.length);
+    const combined = [...newFiles, ...accepted].slice(0, room);
+    setNewFiles(combined);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return combined.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeNewFile = (idx: number) => {
+    const next = newFiles.filter((_, i) => i !== idx);
+    setNewFiles(next);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return next.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  const removeExistingImage = (idx: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const saveEdit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isOwner) return;
+    if (!isOwner || !user) return;
     if (editTitle.trim().length < 3) return toast.error("Title is too short");
     if (editDescription.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setSavingEdit(true);
+
+    // Upload any new files
+    const uploadedUrls: string[] = [];
+    for (const file of newFiles) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("development-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        setSavingEdit(false);
+        toast.error(`Image upload failed: ${upErr.message}`);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("development-images").getPublicUrl(path);
+      uploadedUrls.push(pub.publicUrl);
+    }
+
+    // Try to delete removed images from storage (best-effort)
+    const removedUrls = dev.images.filter((u) => !existingImages.includes(u));
+    if (removedUrls.length) {
+      const paths = removedUrls
+        .map((url) => {
+          const marker = "/development-images/";
+          const i = url.indexOf(marker);
+          return i >= 0 ? url.slice(i + marker.length) : null;
+        })
+        .filter((p): p is string => !!p);
+      if (paths.length) {
+        await supabase.storage.from("development-images").remove(paths);
+      }
+    }
+
+    const finalImages = [...existingImages, ...uploadedUrls];
+
     const { error } = await supabase
       .from("developments")
       .update({
@@ -633,11 +714,17 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
         address: editAddress.trim().slice(0, 200) || null,
         category: editCategory,
         status: editStatus,
+        images: finalImages,
       })
       .eq("id", dev.id);
     setSavingEdit(false);
     if (error) return toast.error(error.message);
     toast.success("Development updated");
+    setNewFiles([]);
+    setNewPreviews((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u));
+      return [];
+    });
     setEditing(false);
     onChange();
   };
@@ -764,17 +851,66 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
             <Label htmlFor="ed">Description</Label>
             <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
           </div>
+          <div className="space-y-1.5">
+            <Label>Photos ({totalImages}/6)</Label>
+            {(existingImages.length > 0 || newPreviews.length > 0) && (
+              <div className="grid grid-cols-3 gap-2">
+                {existingImages.map((src, i) => (
+                  <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(i)}
+                      className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Remove photo"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+                {newPreviews.map((src, i) => (
+                  <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-primary/60">
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono">
+                      new
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeNewFile(i)}
+                      className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Remove photo"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {totalImages < 6 && (
+              <label className="flex items-center justify-center gap-2 w-full h-16 rounded-md border-2 border-dashed border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 cursor-pointer transition text-sm text-muted-foreground">
+                <ImagePlus className="size-4" />
+                <span>Add photos · max 5MB each</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => addEditFiles(e.target.files)}
+                />
+              </label>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Button type="submit" disabled={savingEdit} className="gap-2">
               {savingEdit && <Loader2 className="size-4 animate-spin" />}
-              {savingEdit ? "Saving…" : "Save changes"}
+              {savingEdit ? (newFiles.length > 0 ? "Uploading…" : "Saving…") : "Save changes"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={savingEdit}>
               Cancel
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground font-mono">
-            Photos and outline aren't editable here yet.
+            Map outline isn't editable here yet.
           </p>
         </form>
       ) : (
