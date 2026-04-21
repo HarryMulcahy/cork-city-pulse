@@ -19,7 +19,26 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2 } from "lucide-react";
+import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+
+const READ_STORAGE_KEY = "cork-dev-reads-v1";
+
+function loadReads(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function saveReads(r: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(r));
+  } catch {
+    // ignore
+  }
+}
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
