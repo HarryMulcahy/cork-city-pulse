@@ -127,7 +127,7 @@ export function CorkMap({
         d.area && d.area.length >= 3 ? (
           <Polygon
             key={`area-${d.id}`}
-            positions={d.area.map((p) => [p.lat, p.lng])}
+            positions={d.area.map((p) => [p.lat, p.lng] as [number, number])}
             pathOptions={{
               className: `dev-area ${d.id === selectedId ? "dev-area--selected" : ""}`,
             }}
