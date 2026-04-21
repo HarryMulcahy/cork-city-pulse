@@ -851,17 +851,66 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
             <Label htmlFor="ed">Description</Label>
             <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
           </div>
+          <div className="space-y-1.5">
+            <Label>Photos ({totalImages}/6)</Label>
+            {(existingImages.length > 0 || newPreviews.length > 0) && (
+              <div className="grid grid-cols-3 gap-2">
+                {existingImages.map((src, i) => (
+                  <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(i)}
+                      className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Remove photo"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+                {newPreviews.map((src, i) => (
+                  <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-primary/60">
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono">
+                      new
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeNewFile(i)}
+                      className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      aria-label="Remove photo"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {totalImages < 6 && (
+              <label className="flex items-center justify-center gap-2 w-full h-16 rounded-md border-2 border-dashed border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 cursor-pointer transition text-sm text-muted-foreground">
+                <ImagePlus className="size-4" />
+                <span>Add photos · max 5MB each</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => addEditFiles(e.target.files)}
+                />
+              </label>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Button type="submit" disabled={savingEdit} className="gap-2">
               {savingEdit && <Loader2 className="size-4 animate-spin" />}
-              {savingEdit ? "Saving…" : "Save changes"}
+              {savingEdit ? (newFiles.length > 0 ? "Uploading…" : "Saving…") : "Save changes"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={savingEdit}>
               Cancel
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground font-mono">
-            Photos and outline aren't editable here yet.
+            Map outline isn't editable here yet.
           </p>
         </form>
       ) : (
