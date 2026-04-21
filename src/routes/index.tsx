@@ -151,30 +151,68 @@ function HomePage() {
                 No developments yet. Be the first to drop a pin.
               </div>
             ) : (
-              <ul className="divide-y divide-border">
-                {devs.map((d) => (
-                  <li key={d.id}>
-                    <button
-                      onClick={() => setSelected(d)}
-                      className="w-full text-left px-5 py-4 hover:bg-secondary/50 transition-colors group"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors">
-                          {d.title}
-                        </h3>
-                        <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
-                          {statusLabel(d.status)}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
-                      <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
-                        <span>{categoryLabel(d.category)}</span>
-                        <span>·</span>
-                        <span>{d.profiles?.display_name ?? "anon"}</span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
+              <ul
+                role="listbox"
+                aria-label="Developments in Cork City"
+                aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
+                className="divide-y divide-border focus:outline-none"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (devs.length === 0) return;
+                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const next = devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0];
+                    setSelected(next);
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prev = devs[Math.max(0, idx - 1)] ?? devs[0];
+                    setSelected(prev);
+                  } else if (e.key === "Home") {
+                    e.preventDefault();
+                    setSelected(devs[0]);
+                  } else if (e.key === "End") {
+                    e.preventDefault();
+                    setSelected(devs[devs.length - 1]);
+                  } else if (e.key === "Escape" && selected) {
+                    e.preventDefault();
+                    setSelected(null);
+                  }
+                }}
+              >
+                {devs.map((d) => {
+                  const isSelected = selected?.id === d.id;
+                  return (
+                    <li key={d.id} role="presentation">
+                      <button
+                        id={`dev-item-${d.id}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => setSelected(d)}
+                        className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                          isSelected
+                            ? "bg-secondary border-l-4 border-primary pl-4"
+                            : "hover:bg-secondary/50 border-l-4 border-transparent"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className={`font-semibold text-sm leading-tight transition-colors ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
+                            {d.title}
+                          </h3>
+                          <Badge className={`${STATUS_COLORS[d.status]} text-[10px] uppercase tracking-wider shrink-0 font-medium`}>
+                            {statusLabel(d.status)}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{d.description}</p>
+                        <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground font-mono">
+                          <span>{categoryLabel(d.category)}</span>
+                          <span>·</span>
+                          <span>{d.profiles?.display_name ?? "anon"}</span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

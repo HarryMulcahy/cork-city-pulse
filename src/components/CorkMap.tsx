@@ -3,13 +3,19 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-lea
 import L from "leaflet";
 import { CORK_CENTER, CORK_BOUNDS } from "@/lib/constants";
 
-const pinIcon = L.divIcon({
-  className: "",
-  html: '<div class="dev-pin"></div>',
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-  popupAnchor: [0, -28],
-});
+function makePinIcon(variant: "default" | "selected" | "picked" = "default") {
+  return L.divIcon({
+    className: "",
+    html: `<div class="dev-pin dev-pin--${variant}" aria-hidden="true"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
+  });
+}
+
+const pinIconDefault = makePinIcon("default");
+const pinIconSelected = makePinIcon("selected");
+const pinIconPicked = makePinIcon("picked");
 
 interface DevPoint {
   id: string;
@@ -63,16 +69,23 @@ export function CorkMap({ developments, selectedId, onSelect, pickMode, pickedPo
       />
       <ClickHandler enabled={!!pickMode} onPick={onPick} />
       <FlyTo id={selectedId} points={developments} />
-      {developments.map((d) => (
-        <Marker
-          key={d.id}
-          position={[d.latitude, d.longitude]}
-          icon={pinIcon}
-          eventHandlers={{ click: () => onSelect?.(d.id) }}
-        />
-      ))}
+      {developments.map((d) => {
+        const isSelected = d.id === selectedId;
+        return (
+          <Marker
+            key={d.id}
+            position={[d.latitude, d.longitude]}
+            icon={isSelected ? pinIconSelected : pinIconDefault}
+            zIndexOffset={isSelected ? 1000 : 0}
+            keyboard
+            title={d.title}
+            alt={d.title}
+            eventHandlers={{ click: () => onSelect?.(d.id) }}
+          />
+        );
+      })}
       {pickedPoint && (
-        <Marker position={[pickedPoint.lat, pickedPoint.lng]} icon={pinIcon} />
+        <Marker position={[pickedPoint.lat, pickedPoint.lng]} icon={pinIconPicked} />
       )}
     </MapContainer>
   );
