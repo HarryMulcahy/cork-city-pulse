@@ -27,6 +27,8 @@ export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
+type LatLng = { lat: number; lng: number };
+
 interface Development {
   id: string;
   user_id: string;
@@ -37,6 +39,7 @@ interface Development {
   latitude: number;
   longitude: number;
   address: string | null;
+  area_geojson: LatLng[] | null;
   created_at: string;
   profiles?: { display_name: string } | null;
 }
