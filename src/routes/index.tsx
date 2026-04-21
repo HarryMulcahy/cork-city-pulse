@@ -76,13 +76,23 @@ function HomePage() {
   const loadDevs = async () => {
     const { data, error } = await supabase
       .from("developments")
-      .select("*, profiles(display_name)")
+      .select("*")
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Failed to load developments");
       return;
     }
-    setDevs((data ?? []) as Development[]);
+    const rows = (data ?? []) as Omit<Development, "profiles">[];
+    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    let profMap: Record<string, string> = {};
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ids);
+      profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
+    }
+    setDevs(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null })));
   };
 
   useEffect(() => {
@@ -324,10 +334,20 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const load = async () => {
     const { data } = await supabase
       .from("comments")
-      .select("*, profiles(display_name)")
+      .select("*")
       .eq("development_id", dev.id)
       .order("created_at", { ascending: true });
-    setComments((data ?? []) as Comment[]);
+    const rows = (data ?? []) as Omit<Comment, "profiles">[];
+    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    let profMap: Record<string, string> = {};
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ids);
+      profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
+    }
+    setComments(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null })));
   };
 
   useEffect(() => {
