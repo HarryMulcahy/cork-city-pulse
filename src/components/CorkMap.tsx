@@ -69,16 +69,23 @@ export function CorkMap({ developments, selectedId, onSelect, pickMode, pickedPo
       />
       <ClickHandler enabled={!!pickMode} onPick={onPick} />
       <FlyTo id={selectedId} points={developments} />
-      {developments.map((d) => (
-        <Marker
-          key={d.id}
-          position={[d.latitude, d.longitude]}
-          icon={pinIcon}
-          eventHandlers={{ click: () => onSelect?.(d.id) }}
-        />
-      ))}
+      {developments.map((d) => {
+        const isSelected = d.id === selectedId;
+        return (
+          <Marker
+            key={d.id}
+            position={[d.latitude, d.longitude]}
+            icon={isSelected ? pinIconSelected : pinIconDefault}
+            zIndexOffset={isSelected ? 1000 : 0}
+            keyboard
+            title={d.title}
+            alt={d.title}
+            eventHandlers={{ click: () => onSelect?.(d.id) }}
+          />
+        );
+      })}
       {pickedPoint && (
-        <Marker position={[pickedPoint.lat, pickedPoint.lng]} icon={pinIcon} />
+        <Marker position={[pickedPoint.lat, pickedPoint.lng]} icon={pinIconPicked} />
       )}
     </MapContainer>
   );
