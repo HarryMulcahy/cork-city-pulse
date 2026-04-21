@@ -552,6 +552,39 @@ function SubmitForm({
         )}
       </div>
       <div className="space-y-1.5">
+        <Label>Photos (optional · up to 6)</Label>
+        {previews.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {previews.map((src, i) => (
+              <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                <img src={src} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                  aria-label="Remove photo"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {files.length < 6 && (
+          <label className="flex items-center justify-center gap-2 w-full h-20 rounded-md border-2 border-dashed border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 cursor-pointer transition text-sm text-muted-foreground">
+            <ImagePlus className="size-4" />
+            <span>Add photos · max 5MB each</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+          </label>
+        )}
+      </div>
+      <div className="space-y-1.5">
         <Label htmlFor="d">Description</Label>
         <Textarea id="d" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} required rows={5} placeholder="What's being proposed or built? Why does it matter?" />
       </div>
