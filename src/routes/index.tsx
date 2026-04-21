@@ -601,6 +601,46 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(dev.title);
+  const [editDescription, setEditDescription] = useState(dev.description);
+  const [editAddress, setEditAddress] = useState(dev.address ?? "");
+  const [editCategory, setEditCategory] = useState<Category>(dev.category);
+  const [editStatus, setEditStatus] = useState<Status>(dev.status);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const isOwner = user?.id === dev.user_id;
+
+  useEffect(() => {
+    setEditing(false);
+    setEditTitle(dev.title);
+    setEditDescription(dev.description);
+    setEditAddress(dev.address ?? "");
+    setEditCategory(dev.category);
+    setEditStatus(dev.status);
+  }, [dev.id]);
+
+  const saveEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isOwner) return;
+    if (editTitle.trim().length < 3) return toast.error("Title is too short");
+    if (editDescription.trim().length < 10) return toast.error("Add a bit more detail to the description");
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({
+        title: editTitle.trim().slice(0, 120),
+        description: editDescription.trim().slice(0, 2000),
+        address: editAddress.trim().slice(0, 200) || null,
+        category: editCategory,
+        status: editStatus,
+      })
+      .eq("id", dev.id);
+    setSavingEdit(false);
+    if (error) return toast.error(error.message);
+    toast.success("Development updated");
+    setEditing(false);
+    onChange();
+  };
 
   const load = async () => {
     const { data } = await supabase
@@ -690,19 +730,74 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
         </div>
       )}
 
-      <div className="mt-4 space-y-4">
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>
-        <div className="text-xs text-muted-foreground font-mono pt-2 border-t border-border flex items-center justify-between">
-          <span>
-            Submitted by {dev.profiles?.display_name ?? "anon"} · {new Date(dev.created_at).toLocaleDateString()}
-          </span>
-          {user?.id === dev.user_id && (
-            <button onClick={remove} className="text-destructive hover:underline">
-              delete
-            </button>
-          )}
+      {editing && isOwner ? (
+        <form onSubmit={saveEdit} className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="et">Title</Label>
+            <Input id="et" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={120} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ea">Address</Label>
+            <Input id="ea" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} maxLength={200} placeholder="Optional" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={editCategory} onValueChange={(v) => setEditCategory(v as Category)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[1200]">
+                  {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as Status)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[1200]">
+                  {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ed">Description</Label>
+            <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="submit" disabled={savingEdit} className="gap-2">
+              {savingEdit && <Loader2 className="size-4 animate-spin" />}
+              {savingEdit ? "Saving…" : "Save changes"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={savingEdit}>
+              Cancel
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-mono">
+            Photos and outline aren't editable here yet.
+          </p>
+        </form>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>
+          <div className="text-xs text-muted-foreground font-mono pt-2 border-t border-border flex items-center justify-between gap-3">
+            <span>
+              Submitted by {dev.profiles?.display_name ?? "anon"} · {new Date(dev.created_at).toLocaleDateString()}
+            </span>
+            {isOwner && (
+              <span className="flex items-center gap-2">
+                <button onClick={() => setEditing(true)} className="text-primary hover:underline flex items-center gap-1">
+                  <Pencil className="size-3" /> edit
+                </button>
+                <span>·</span>
+                <button onClick={remove} className="text-destructive hover:underline">
+                  delete
+                </button>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-8 flex-1">
         <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
