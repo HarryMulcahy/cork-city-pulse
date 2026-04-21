@@ -61,6 +61,8 @@ interface Development {
   area_geojson: LatLng[] | null;
   images: string[];
   created_at: string;
+  last_activity_at: string;
+  comments_count: number;
   profiles?: { display_name: string } | null;
 }
 
