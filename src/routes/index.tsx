@@ -207,6 +207,16 @@ function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
+  // Filters (multi-select). Empty set = "all".
+  const [categoryFilter, setCategoryFilter] = useState<Set<Category>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set());
+  const toggleInSet = <T,>(set: Set<T>, value: T): Set<T> => {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
+
   const loadDevs = async () => {
     const { data, error } = await supabase
       .from("developments")
