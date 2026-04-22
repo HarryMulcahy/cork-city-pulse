@@ -207,6 +207,16 @@ function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
+  // Filters (multi-select). Empty set = "all".
+  const [categoryFilter, setCategoryFilter] = useState<Set<Category>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set());
+  const toggleInSet = <T,>(set: Set<T>, value: T): Set<T> => {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
+
   const loadDevs = async () => {
     const { data, error } = await supabase
       .from("developments")
@@ -280,6 +290,16 @@ function HomePage() {
     () => (city ? devs.filter((d) => inBounds(d.latitude, d.longitude, city.bounds)) : []),
     [devs, city],
   );
+
+  const filteredDevs = useMemo(() => {
+    return cityDevs.filter((d) => {
+      if (categoryFilter.size > 0 && !categoryFilter.has(d.category)) return false;
+      if (statusFilter.size > 0 && !statusFilter.has(d.status)) return false;
+      return true;
+    });
+  }, [cityDevs, categoryFilter, statusFilter]);
+
+  const filtersActive = categoryFilter.size > 0 || statusFilter.size > 0;
 
   const isUnread = (d: Development) => {
     const seen = reads[d.id];
@@ -394,7 +414,7 @@ function HomePage() {
               center={city.center}
               bounds={city.bounds}
               cityKey={city.id}
-              developments={cityDevs.map((d) => ({
+              developments={filteredDevs.map((d) => ({
                 id: d.id,
                 latitude: d.latitude,
                 longitude: d.longitude,
@@ -404,7 +424,7 @@ function HomePage() {
                 shape: d.area?.shape,
               }))}
               selectedId={selected?.id ?? null}
-              onSelect={(id) => setSelected(cityDevs.find((d) => d.id === id) ?? null)}
+              onSelect={(id) => setSelected(filteredDevs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               pickedCategory={draft.category}
@@ -493,8 +513,9 @@ function HomePage() {
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{cityDevs.length}</span>{" "}
-                {cityDevs.length === 1 ? "development" : "developments"}
+                <span className="font-semibold text-foreground">{filteredDevs.length}</span>
+                {filtersActive && <span className="text-muted-foreground">/{cityDevs.length}</span>}{" "}
+                {filteredDevs.length === 1 ? "development" : "developments"}
                 {unreadCount > 0 && (
                   <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
                 )}
@@ -519,12 +540,80 @@ function HomePage() {
                 to contribute.
               </p>
             )}
+
+            {/* Filters */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Filters
+                </span>
+                {filtersActive && (
+                  <button
+                    onClick={() => {
+                      setCategoryFilter(new Set());
+                      setStatusFilter(new Set());
+                    }}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
+                <div className="flex flex-wrap gap-1">
+                  {CATEGORIES.map((c) => {
+                    const active = categoryFilter.has(c.value);
+                    const color = CATEGORY_COLORS[c.value];
+                    return (
+                      <button
+                        key={c.value}
+                        onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
+                        aria-pressed={active}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                          active
+                            ? "text-white border-transparent"
+                            : "bg-background hover:bg-secondary border-border text-foreground"
+                        }`}
+                        style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                <div className="flex flex-wrap gap-1">
+                  {STATUSES.map((s) => {
+                    const active = statusFilter.has(s.value);
+                    return (
+                      <button
+                        key={s.value}
+                        onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
+                        aria-pressed={active}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                          active
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background hover:bg-secondary border-border text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {cityDevs.length === 0 ? (
+            {filteredDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                No developments here yet. Be the first to drop a pin in {city.name}.
+                {cityDevs.length === 0
+                  ? `No developments here yet. Be the first to drop a pin in ${city.name}.`
+                  : "No developments match your filters."}
               </div>
             ) : (
               <ul
@@ -534,27 +623,27 @@ function HomePage() {
                 className="divide-y divide-border focus:outline-none"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (cityDevs.length === 0) return;
-                  const idx = selected ? cityDevs.findIndex((d) => d.id === selected.id) : -1;
+                  if (filteredDevs.length === 0) return;
+                  const idx = selected ? filteredDevs.findIndex((d) => d.id === selected.id) : -1;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelected(cityDevs[Math.min(cityDevs.length - 1, idx + 1)] ?? cityDevs[0]);
+                    setSelected(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelected(cityDevs[Math.max(0, idx - 1)] ?? cityDevs[0]);
+                    setSelected(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
                   } else if (e.key === "Home") {
                     e.preventDefault();
-                    setSelected(cityDevs[0]);
+                    setSelected(filteredDevs[0]);
                   } else if (e.key === "End") {
                     e.preventDefault();
-                    setSelected(cityDevs[cityDevs.length - 1]);
+                    setSelected(filteredDevs[filteredDevs.length - 1]);
                   } else if (e.key === "Escape" && selected) {
                     e.preventDefault();
                     setSelected(null);
                   }
                 }}
               >
-                {cityDevs.map((d) => {
+                {filteredDevs.map((d) => {
                   const isSelected = selected?.id === d.id;
                   const unread = isUnread(d);
                   const catColor = CATEGORY_COLORS[d.category];
