@@ -623,27 +623,27 @@ function HomePage() {
                 className="divide-y divide-border focus:outline-none"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (cityDevs.length === 0) return;
-                  const idx = selected ? cityDevs.findIndex((d) => d.id === selected.id) : -1;
+                  if (filteredDevs.length === 0) return;
+                  const idx = selected ? filteredDevs.findIndex((d) => d.id === selected.id) : -1;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelected(cityDevs[Math.min(cityDevs.length - 1, idx + 1)] ?? cityDevs[0]);
+                    setSelected(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelected(cityDevs[Math.max(0, idx - 1)] ?? cityDevs[0]);
+                    setSelected(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
                   } else if (e.key === "Home") {
                     e.preventDefault();
-                    setSelected(cityDevs[0]);
+                    setSelected(filteredDevs[0]);
                   } else if (e.key === "End") {
                     e.preventDefault();
-                    setSelected(cityDevs[cityDevs.length - 1]);
+                    setSelected(filteredDevs[filteredDevs.length - 1]);
                   } else if (e.key === "Escape" && selected) {
                     e.preventDefault();
                     setSelected(null);
                   }
                 }}
               >
-                {cityDevs.map((d) => {
+                {filteredDevs.map((d) => {
                   const isSelected = selected?.id === d.id;
                   const unread = isUnread(d);
                   const catColor = CATEGORY_COLORS[d.category];
