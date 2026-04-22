@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, lazy, Suspense, type FormEvent } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
@@ -17,11 +17,27 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { CATEGORIES, STATUSES, type Category, type Status } from "@/lib/constants";
+import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
+import { CitySearch } from "@/components/CitySearch";
+import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
 import { toast } from "sonner";
-import { MapPin, Plus, MessageSquare, X, Pencil, Undo2, Check, ImagePlus, Loader2, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import {
+  MapPin,
+  Plus,
+  MessageSquare,
+  X,
+  Pencil,
+  Undo2,
+  Check,
+  ImagePlus,
+  Loader2,
+  PanelLeftOpen,
+  PanelLeftClose,
+  Spline,
+  Hexagon,
+} from "lucide-react";
 
-const READ_STORAGE_KEY = "cork-dev-reads-v1";
+const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
 
 function loadReads(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -65,6 +81,43 @@ export const Route = createFileRoute("/")({
 });
 
 type LatLng = { lat: number; lng: number };
+type ShapeKind = "polygon" | "line";
+
+interface ShapeData {
+  shape: ShapeKind;
+  points: LatLng[];
+}
+
+/**
+ * Older rows store area_geojson as a bare array of {lat,lng}.
+ * Newer rows store {type, points}. This normalises both.
+ */
+function parseShape(raw: unknown): ShapeData | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    const pts = raw.filter(
+      (p): p is LatLng =>
+        !!p && typeof (p as LatLng).lat === "number" && typeof (p as LatLng).lng === "number",
+    );
+    if (pts.length < 2) return null;
+    return { shape: "polygon", points: pts };
+  }
+  if (typeof raw === "object") {
+    const obj = raw as { type?: string; points?: unknown };
+    const pts = Array.isArray(obj.points)
+      ? (obj.points as unknown[]).filter(
+          (p): p is LatLng =>
+            !!p &&
+            typeof (p as LatLng).lat === "number" &&
+            typeof (p as LatLng).lng === "number",
+        )
+      : [];
+    if (pts.length < 2) return null;
+    const shape: ShapeKind = obj.type === "line" ? "line" : "polygon";
+    return { shape, points: pts };
+  }
+  return null;
+}
 
 interface Development {
   id: string;
@@ -76,7 +129,7 @@ interface Development {
   latitude: number;
   longitude: number;
   address: string | null;
-  area_geojson: LatLng[] | null;
+  area: ShapeData | null;
   images: string[];
   created_at: string;
   last_activity_at: string;
@@ -108,16 +161,49 @@ function categoryLabel(c: Category) {
   return CATEGORIES.find((x) => x.value === c)?.label ?? c;
 }
 
+/** Bounding-box check so we only show developments inside the current city. */
+function inBounds(lat: number, lng: number, b: City["bounds"]) {
+  return lat >= b[0][0] && lat <= b[1][0] && lng >= b[0][1] && lng <= b[1][1];
+}
+
+interface SubmitDraft {
+  title: string;
+  description: string;
+  address: string;
+  category: Category;
+  status: Status;
+  files: File[];
+  previews: string[];
+}
+const EMPTY_DRAFT: SubmitDraft = {
+  title: "",
+  description: "",
+  address: "",
+  category: "residential",
+  status: "proposed",
+  files: [],
+  previews: [],
+};
+
 function HomePage() {
   const { user } = useAuth();
+  const [city, setCity] = useState<City | null>(() => loadSavedCity());
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
+
+  // Drawing state (used by both submit + edit flows)
   const [drawMode, setDrawMode] = useState(false);
+  const [drawShape, setDrawShape] = useState<ShapeKind>("polygon");
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
-  const [pendingArea, setPendingArea] = useState<LatLng[] | null>(null);
+  const [pendingShape, setPendingShape] = useState<ShapeData | null>(null);
+  const [drawTarget, setDrawTarget] = useState<"submit" | "edit">("submit");
+
+  // Lifted submit-form draft so closing the dialog (e.g. while drawing) doesn't lose data.
+  const [draft, setDraft] = useState<SubmitDraft>(EMPTY_DRAFT);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
@@ -130,7 +216,11 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    const rows = (data ?? []) as Array<Omit<Development, "profiles" | "area_geojson" | "images" | "last_activity_at" | "comments_count"> & { area_geojson: unknown; images: string[] | null }>;
+    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count"> & {
+      area_geojson: unknown;
+      images: string[] | null;
+    };
+    const rows = (data ?? []) as RawRow[];
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
@@ -141,7 +231,6 @@ function HomePage() {
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
 
-    // Pull comment activity per development
     const devIds = rows.map((r) => r.id);
     const activity: Record<string, { last: string; count: number }> = {};
     if (devIds.length) {
@@ -162,9 +251,7 @@ function HomePage() {
       const last = a?.last && a.last > r.created_at ? a.last : r.created_at;
       return {
         ...r,
-        area_geojson: Array.isArray(r.area_geojson)
-          ? (r.area_geojson as LatLng[]).filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
-          : null,
+        area: parseShape(r.area_geojson),
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
         last_activity_at: last,
@@ -189,6 +276,11 @@ function HomePage() {
     });
   }, [selected?.id, selected?.last_activity_at]);
 
+  const cityDevs = useMemo(
+    () => (city ? devs.filter((d) => inBounds(d.latitude, d.longitude, city.bounds)) : []),
+    [devs, city],
+  );
+
   const isUnread = (d: Development) => {
     const seen = reads[d.id];
     return !seen || seen < d.last_activity_at;
@@ -205,41 +297,93 @@ function HomePage() {
       toast.info("Sign in to submit a development");
       return;
     }
+    // Reset only when starting a brand-new submission
+    setDraft(EMPTY_DRAFT);
+    setPendingShape(null);
     setPickMode(true);
     setSelected(null);
     toast("Tap anywhere on the map to drop your pin");
   };
 
-  const startDrawing = () => {
+  const startDrawing = (target: "submit" | "edit", shape: ShapeKind) => {
     setSubmitOpen(false);
+    setSelected(null); // close detail sheet so the map is clear
+    setDrawTarget(target);
+    setDrawShape(shape);
     setDrawPoints([]);
-    setPendingArea(null);
     setDrawMode(true);
-    toast("Click to add vertices · double-click or 'Finish' when done");
+    if (shape === "line") {
+      toast("Click to add waypoints · double-click or 'Finish' to complete the line");
+    } else {
+      toast("Click to add vertices · double-click or 'Finish' when done");
+    }
   };
 
   const finishDrawing = () => {
-    if (drawPoints.length < 3) {
-      toast.error("Add at least 3 points to make an outline");
+    const min = drawShape === "line" ? 2 : 3;
+    if (drawPoints.length < min) {
+      toast.error(`Add at least ${min} points`);
       return;
     }
-    setPendingArea(drawPoints);
+    setPendingShape({ shape: drawShape, points: drawPoints });
     setDrawPoints([]);
     setDrawMode(false);
-    setSubmitOpen(true);
+    if (drawTarget === "submit") {
+      setSubmitOpen(true);
+    } else {
+      // For edit, the SubmitForm/EditForm will read pendingShape on next open.
+      // Re-open the previously-selected development sheet:
+      const id = pendingEditId.current;
+      if (id) {
+        const found = devs.find((d) => d.id === id);
+        if (found) setSelected(found);
+      }
+    }
   };
 
   const cancelDrawing = () => {
     setDrawPoints([]);
     setDrawMode(false);
-    setSubmitOpen(true);
+    if (drawTarget === "submit") {
+      setSubmitOpen(true);
+    } else {
+      const id = pendingEditId.current;
+      if (id) {
+        const found = devs.find((d) => d.id === id);
+        if (found) setSelected(found);
+      }
+    }
   };
 
-  const unreadCount = devs.filter(isUnread).length;
+  // Track which dev is being edited so we can re-open its sheet after drawing.
+  const pendingEditId = useMemo(() => ({ current: null as string | null }), []);
+
+  const unreadCount = cityDevs.filter(isUnread).length;
+
+  const handleChangeCity = () => {
+    clearSavedCity();
+    setCity(null);
+    setSelected(null);
+    setPickedPoint(null);
+    setPendingShape(null);
+    setSubmitOpen(false);
+  };
+
+  // CITY SEARCH SCREEN
+  if (!city) {
+    return (
+      <CitySearch
+        onPick={(c) => {
+          saveCity(c);
+          setCity(c);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <Header />
+      <Header city={city} onChangeCity={handleChangeCity} />
       <div className="flex-1 relative min-h-0">
         {/* Full-screen Map */}
         <main className="absolute inset-0">
@@ -247,19 +391,27 @@ function HomePage() {
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
             <CorkMap
-              developments={devs.map((d) => ({
+              center={city.center}
+              bounds={city.bounds}
+              cityKey={city.id}
+              developments={cityDevs.map((d) => ({
                 id: d.id,
                 latitude: d.latitude,
                 longitude: d.longitude,
                 title: d.title,
-                area: d.area_geojson,
+                category: d.category,
+                area: d.area?.points ?? null,
+                shape: d.area?.shape,
               }))}
               selectedId={selected?.id ?? null}
-              onSelect={(id) => setSelected(devs.find((d) => d.id === id) ?? null)}
+              onSelect={(id) => setSelected(cityDevs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
+              pickedCategory={draft.category}
               onPick={handlePick}
               drawMode={drawMode}
+              drawShape={drawShape}
+              drawCategory={draft.category}
               drawPoints={drawPoints}
               onDrawPoint={(lat, lng) => setDrawPoints((prev) => [...prev, { lat, lng }])}
               onDrawFinish={finishDrawing}
@@ -281,11 +433,11 @@ function HomePage() {
           )}
 
           {drawMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-3 py-2 rounded-md shadow-lg flex items-center gap-2 text-sm">
-              <Pencil className="size-4" />
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-3 py-2 rounded-md shadow-lg flex items-center gap-2 text-sm flex-wrap justify-center max-w-[95vw]">
+              {drawShape === "line" ? <Spline className="size-4" /> : <Hexagon className="size-4" />}
               <span className="hidden sm:inline">
-                {drawPoints.length < 3
-                  ? `Add ${3 - drawPoints.length} more point${3 - drawPoints.length === 1 ? "" : "s"}`
+                {drawPoints.length < (drawShape === "line" ? 2 : 3)
+                  ? `Add ${(drawShape === "line" ? 2 : 3) - drawPoints.length} more point${(drawShape === "line" ? 2 : 3) - drawPoints.length === 1 ? "" : "s"}`
                   : `${drawPoints.length} points · double-click to finish`}
               </span>
               <span className="sm:hidden font-mono text-xs">{drawPoints.length} pts</span>
@@ -298,7 +450,7 @@ function HomePage() {
               </button>
               <button
                 onClick={finishDrawing}
-                disabled={drawPoints.length < 3}
+                disabled={drawPoints.length < (drawShape === "line" ? 2 : 3)}
                 className="px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 flex items-center gap-1 text-xs"
               >
                 <Check className="size-3.5" /> Finish
@@ -339,28 +491,23 @@ function HomePage() {
           aria-hidden={!sidebarOpen}
         >
           <div className="px-5 py-4 border-b border-border">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-primary">
-                Cork City · Live feed
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{cityDevs.length}</span>{" "}
+                {cityDevs.length === 1 ? "development" : "developments"}
+                {unreadCount > 0 && (
+                  <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
+                )}
               </p>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition -mt-1 -mr-1 p-1"
+                className="text-muted-foreground hover:text-foreground transition p-1"
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="size-4" />
               </button>
             </div>
-            <h1 className="text-2xl font-bold leading-tight">
-              What's being built<br />in our city.
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {devs.length} {devs.length === 1 ? "development" : "developments"}
-              {unreadCount > 0 && (
-                <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
-              )}
-            </p>
-            <Button onClick={startPicking} className="w-full mt-4 gap-2">
+            <Button onClick={startPicking} className="w-full mt-3 gap-2">
               <Plus className="size-4" />
               Submit a development
             </Button>
@@ -375,41 +522,42 @@ function HomePage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {devs.length === 0 ? (
+            {cityDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                No developments yet. Be the first to drop a pin.
+                No developments here yet. Be the first to drop a pin in {city.name}.
               </div>
             ) : (
               <ul
                 role="listbox"
-                aria-label="Developments in Cork City"
+                aria-label={`Developments in ${city.name}`}
                 aria-activedescendant={selected ? `dev-item-${selected.id}` : undefined}
                 className="divide-y divide-border focus:outline-none"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (devs.length === 0) return;
-                  const idx = selected ? devs.findIndex((d) => d.id === selected.id) : -1;
+                  if (cityDevs.length === 0) return;
+                  const idx = selected ? cityDevs.findIndex((d) => d.id === selected.id) : -1;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelected(devs[Math.min(devs.length - 1, idx + 1)] ?? devs[0]);
+                    setSelected(cityDevs[Math.min(cityDevs.length - 1, idx + 1)] ?? cityDevs[0]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelected(devs[Math.max(0, idx - 1)] ?? devs[0]);
+                    setSelected(cityDevs[Math.max(0, idx - 1)] ?? cityDevs[0]);
                   } else if (e.key === "Home") {
                     e.preventDefault();
-                    setSelected(devs[0]);
+                    setSelected(cityDevs[0]);
                   } else if (e.key === "End") {
                     e.preventDefault();
-                    setSelected(devs[devs.length - 1]);
+                    setSelected(cityDevs[cityDevs.length - 1]);
                   } else if (e.key === "Escape" && selected) {
                     e.preventDefault();
                     setSelected(null);
                   }
                 }}
               >
-                {devs.map((d) => {
+                {cityDevs.map((d) => {
                   const isSelected = selected?.id === d.id;
                   const unread = isUnread(d);
+                  const catColor = CATEGORY_COLORS[d.category];
                   return (
                     <li key={d.id} role="presentation">
                       <button
@@ -419,11 +567,12 @@ function HomePage() {
                         onClick={() => setSelected(d)}
                         className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                           isSelected
-                            ? "bg-secondary border-l-4 border-primary pl-4"
+                            ? "bg-secondary border-l-4 pl-4"
                             : unread
-                              ? "bg-primary/5 hover:bg-secondary/70 border-l-4 border-primary/60 pl-4"
+                              ? "bg-primary/5 hover:bg-secondary/70 border-l-4 pl-4"
                               : "hover:bg-secondary/50 border-l-4 border-transparent"
                         }`}
+                        style={isSelected || unread ? { borderLeftColor: catColor } : undefined}
                       >
                         <div className="flex gap-3">
                           {d.images[0] ? (
@@ -434,8 +583,11 @@ function HomePage() {
                               className="size-20 rounded-md object-cover shrink-0 border border-border"
                             />
                           ) : (
-                            <div className="size-20 rounded-md shrink-0 border border-border bg-secondary flex items-center justify-center">
-                              <MapPin className="size-6 text-muted-foreground/50" />
+                            <div
+                              className="size-20 rounded-md shrink-0 border border-border flex items-center justify-center"
+                              style={{ backgroundColor: `${catColor}1a`, borderColor: `${catColor}55` }}
+                            >
+                              <MapPin className="size-6" style={{ color: catColor }} />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -444,7 +596,11 @@ function HomePage() {
                                 unread && !isSelected ? "font-bold text-foreground" : "font-semibold"
                               } ${isSelected ? "text-primary" : "group-hover:text-primary"}`}>
                                 {unread && !isSelected && (
-                                  <span className="inline-block size-2 rounded-full bg-primary mr-1.5 -translate-y-0.5" aria-label="unread" />
+                                  <span
+                                    className="inline-block size-2 rounded-full mr-1.5 -translate-y-0.5"
+                                    style={{ backgroundColor: catColor }}
+                                    aria-label="unread"
+                                  />
                                 )}
                                 {d.title}
                               </h3>
@@ -456,7 +612,12 @@ function HomePage() {
                               {d.description}
                             </p>
                             <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground font-mono flex-wrap">
-                              <span>{categoryLabel(d.category)}</span>
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded"
+                                style={{ backgroundColor: `${catColor}1a`, color: catColor }}
+                              >
+                                {categoryLabel(d.category)}
+                              </span>
                               <span>·</span>
                               <span>{d.profiles?.display_name ?? "anon"}</span>
                               {d.comments_count > 0 && (
@@ -486,7 +647,20 @@ function HomePage() {
       {/* Detail sheet */}
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto z-[1100]">
-          {selected && <DevelopmentDetail dev={selected} onChange={loadDevs} />}
+          {selected && (
+            <DevelopmentDetail
+              dev={selected}
+              onChange={loadDevs}
+              pendingShape={drawTarget === "edit" && pendingShape ? pendingShape : null}
+              consumePendingShape={() => {
+                setPendingShape(null);
+              }}
+              onStartDraw={(shape) => {
+                pendingEditId.current = selected.id;
+                startDrawing("edit", shape);
+              }}
+            />
+          )}
         </SheetContent>
       </Sheet>
 
@@ -495,13 +669,15 @@ function HomePage() {
         open={submitOpen}
         onOpenChange={(o) => {
           setSubmitOpen(o);
-          if (!o) {
+          if (!o && !drawMode) {
+            // Only fully reset when the user closes the dialog without going to draw
             setPickedPoint(null);
-            setPendingArea(null);
+            setPendingShape(null);
+            setDraft(EMPTY_DRAFT);
           }
         }}
       >
-        <DialogContent className="z-[1100]">
+        <DialogContent className="z-[1100] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submit a development</DialogTitle>
             <DialogDescription>
@@ -513,13 +689,19 @@ function HomePage() {
           {pickedPoint && (
             <SubmitForm
               point={pickedPoint}
-              area={pendingArea}
-              onClearArea={() => setPendingArea(null)}
-              onStartDraw={startDrawing}
+              shape={pendingShape}
+              draft={draft}
+              setDraft={setDraft}
+              onClearShape={() => setPendingShape(null)}
+              onStartDraw={(s) => {
+                setDrawTarget("submit");
+                startDrawing("submit", s);
+              }}
               onDone={() => {
                 setSubmitOpen(false);
                 setPickedPoint(null);
-                setPendingArea(null);
+                setPendingShape(null);
+                setDraft(EMPTY_DRAFT);
                 loadDevs();
               }}
             />
@@ -530,28 +712,27 @@ function HomePage() {
   );
 }
 
+interface SubmitFormProps {
+  point: LatLng;
+  shape: ShapeData | null;
+  draft: SubmitDraft;
+  setDraft: React.Dispatch<React.SetStateAction<SubmitDraft>>;
+  onClearShape: () => void;
+  onStartDraw: (shape: ShapeKind) => void;
+  onDone: () => void;
+}
+
 function SubmitForm({
   point,
-  area,
-  onClearArea,
+  shape,
+  draft,
+  setDraft,
+  onClearShape,
   onStartDraw,
   onDone,
-}: {
-  point: LatLng;
-  area: LatLng[] | null;
-  onClearArea: () => void;
-  onStartDraw: () => void;
-  onDone: () => void;
-}) {
+}: SubmitFormProps) {
   const { user } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
-  const [category, setCategory] = useState<Category>("residential");
-  const [status, setStatus] = useState<Status>("proposed");
   const [loading, setLoading] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
 
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -564,35 +745,38 @@ function SubmitForm({
       }
       accepted.push(f);
     }
-    const combined = [...files, ...accepted].slice(0, 6);
-    setFiles(combined);
-    setPreviews((prev) => {
-      prev.forEach((u) => URL.revokeObjectURL(u));
-      return combined.map((f) => URL.createObjectURL(f));
+    setDraft((d) => {
+      const combined = [...d.files, ...accepted].slice(0, 6);
+      d.previews.forEach((u) => URL.revokeObjectURL(u));
+      return {
+        ...d,
+        files: combined,
+        previews: combined.map((f) => URL.createObjectURL(f)),
+      };
     });
   };
 
   const removeFile = (idx: number) => {
-    const next = files.filter((_, i) => i !== idx);
-    setFiles(next);
-    setPreviews((prev) => {
-      prev.forEach((u) => URL.revokeObjectURL(u));
-      return next.map((f) => URL.createObjectURL(f));
+    setDraft((d) => {
+      const next = d.files.filter((_, i) => i !== idx);
+      d.previews.forEach((u) => URL.revokeObjectURL(u));
+      return {
+        ...d,
+        files: next,
+        previews: next.map((f) => URL.createObjectURL(f)),
+      };
     });
   };
-
-  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (title.trim().length < 3) return toast.error("Title is too short");
-    if (description.trim().length < 10) return toast.error("Add a bit more detail to the description");
+    if (draft.title.trim().length < 3) return toast.error("Title is too short");
+    if (draft.description.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setLoading(true);
 
-    // Upload images first
     const uploadedUrls: string[] = [];
-    for (const file of files) {
+    for (const file of draft.files) {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: upErr } = await supabase.storage
@@ -609,14 +793,14 @@ function SubmitForm({
 
     const { error } = await supabase.from("developments").insert({
       user_id: user.id,
-      title: title.trim().slice(0, 120),
-      description: description.trim().slice(0, 2000),
-      address: address.trim().slice(0, 200) || null,
-      category,
-      status,
+      title: draft.title.trim().slice(0, 120),
+      description: draft.description.trim().slice(0, 2000),
+      address: draft.address.trim().slice(0, 200) || null,
+      category: draft.category,
+      status: draft.status,
       latitude: point.lat,
       longitude: point.lng,
-      area_geojson: area && area.length >= 3 ? area : null,
+      area_geojson: shape ? { type: shape.shape, points: shape.points } : null,
       images: uploadedUrls,
     });
     setLoading(false);
@@ -632,25 +816,51 @@ function SubmitForm({
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="t">Title</Label>
-        <Input id="t" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} required placeholder="e.g. Marina Quarter masterplan" />
+        <Input
+          id="t"
+          value={draft.title}
+          onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+          maxLength={120}
+          required
+          placeholder="e.g. Marina Quarter masterplan"
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="a">Address (optional)</Label>
-        <Input id="a" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={200} placeholder="e.g. South Docks, Cork" />
+        <Input
+          id="a"
+          value={draft.address}
+          onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
+          maxLength={200}
+          placeholder="Street, neighbourhood…"
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>Category</Label>
-          <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
+          <Select
+            value={draft.category}
+            onValueChange={(v) => setDraft((d) => ({ ...d, category: v as Category }))}
+          >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent className="z-[1200]">
-              {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[c.value] }} />
+                    {c.label}
+                  </span>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Status</Label>
-          <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
+          <Select
+            value={draft.status}
+            onValueChange={(v) => setDraft((d) => ({ ...d, status: v as Status }))}
+          >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent className="z-[1200]">
               {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
@@ -659,35 +869,44 @@ function SubmitForm({
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label>Area outline (optional)</Label>
-        {area && area.length >= 3 ? (
+        <Label>Site shape (optional)</Label>
+        {shape ? (
           <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
             <span className="flex items-center gap-2 font-mono">
-              <Pencil className="size-3.5 text-primary" />
-              {area.length}-point outline drawn
+              {shape.shape === "line" ? <Spline className="size-3.5 text-primary" /> : <Hexagon className="size-3.5 text-primary" />}
+              {shape.shape === "line" ? "Line" : "Outline"} · {shape.points.length} points
             </span>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={onStartDraw} className="text-primary hover:underline">
+              <button type="button" onClick={() => onStartDraw(shape.shape)} className="text-primary hover:underline">
                 Redraw
               </button>
               <span className="text-muted-foreground">·</span>
-              <button type="button" onClick={onClearArea} className="text-destructive hover:underline">
+              <button type="button" onClick={onClearShape} className="text-destructive hover:underline">
                 Clear
               </button>
             </div>
           </div>
         ) : (
-          <Button type="button" variant="outline" onClick={onStartDraw} className="w-full gap-2">
-            <Pencil className="size-4" />
-            Draw outline on map
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" onClick={() => onStartDraw("polygon")} className="gap-2">
+              <Hexagon className="size-4" />
+              Draw outline
+            </Button>
+            <Button type="button" variant="outline" onClick={() => onStartDraw("line")} className="gap-2">
+              <Spline className="size-4" />
+              Draw line
+            </Button>
+          </div>
         )}
+        <p className="text-[11px] text-muted-foreground font-mono">
+          Outlines suit buildings or sites · lines suit roads, rail, cycle paths.
+        </p>
       </div>
       <div className="space-y-1.5">
         <Label>Photos (optional · up to 6)</Label>
-        {previews.length > 0 && (
+        {draft.previews.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
-            {previews.map((src, i) => (
+            {draft.previews.map((src, i) => (
               <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-border">
                 <img src={src} alt="" className="h-full w-full object-cover" />
                 <button
@@ -702,7 +921,7 @@ function SubmitForm({
             ))}
           </div>
         )}
-        {files.length < 6 && (
+        {draft.files.length < 6 && (
           <label className="flex items-center justify-center gap-2 w-full h-20 rounded-md border-2 border-dashed border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/50 cursor-pointer transition text-sm text-muted-foreground">
             <ImagePlus className="size-4" />
             <span>Add photos · max 5MB each</span>
@@ -718,17 +937,39 @@ function SubmitForm({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="d">Description</Label>
-        <Textarea id="d" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} required rows={5} placeholder="What's being proposed or built? Why does it matter?" />
+        <Textarea
+          id="d"
+          value={draft.description}
+          onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+          maxLength={2000}
+          required
+          rows={5}
+          placeholder="What's being proposed or built? Why does it matter?"
+        />
       </div>
       <Button type="submit" className="w-full gap-2" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />}
-        {loading ? (files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
+        {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
       </Button>
     </form>
   );
 }
 
-function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () => void }) {
+interface DetailProps {
+  dev: Development;
+  onChange: () => void;
+  pendingShape: ShapeData | null;
+  consumePendingShape: () => void;
+  onStartDraw: (shape: ShapeKind) => void;
+}
+
+function DevelopmentDetail({
+  dev,
+  onChange,
+  pendingShape,
+  consumePendingShape,
+  onStartDraw,
+}: DetailProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
@@ -739,12 +980,14 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
   const [editAddress, setEditAddress] = useState(dev.address ?? "");
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
+  const [editShape, setEditShape] = useState<ShapeData | null>(dev.area);
   const [savingEdit, setSavingEdit] = useState(false);
   const [existingImages, setExistingImages] = useState<string[]>(dev.images);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const isOwner = user?.id === dev.user_id;
 
+  // When the dev changes (open a different one), reset edit state.
   useEffect(() => {
     setEditing(false);
     setEditTitle(dev.title);
@@ -752,6 +995,7 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
     setEditAddress(dev.address ?? "");
     setEditCategory(dev.category);
     setEditStatus(dev.status);
+    setEditShape(dev.area);
     setExistingImages(dev.images);
     setNewFiles([]);
     setNewPreviews((prev) => {
@@ -759,6 +1003,16 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
       return [];
     });
   }, [dev.id]);
+
+  // Pick up a freshly-drawn shape from the parent after returning from draw mode.
+  useEffect(() => {
+    if (pendingShape) {
+      setEditShape(pendingShape);
+      setEditing(true);
+      consumePendingShape();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingShape]);
 
   useEffect(() => () => newPreviews.forEach((u) => URL.revokeObjectURL(u)), [newPreviews]);
 
@@ -804,7 +1058,6 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
     if (editDescription.trim().length < 10) return toast.error("Add a bit more detail to the description");
     setSavingEdit(true);
 
-    // Upload any new files
     const uploadedUrls: string[] = [];
     for (const file of newFiles) {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -821,7 +1074,6 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
       uploadedUrls.push(pub.publicUrl);
     }
 
-    // Try to delete removed images from storage (best-effort)
     const removedUrls = dev.images.filter((u) => !existingImages.includes(u));
     if (removedUrls.length) {
       const paths = removedUrls
@@ -847,6 +1099,7 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
         category: editCategory,
         status: editStatus,
         images: finalImages,
+        area_geojson: editShape ? { type: editShape.shape, points: editShape.points } : null,
       })
       .eq("id", dev.id);
     setSavingEdit(false);
@@ -882,6 +1135,7 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dev.id]);
 
   const post = async (e: FormEvent) => {
@@ -912,7 +1166,11 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
     <div className="flex flex-col h-full">
       <SheetHeader className="px-0">
         <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
-          {statusLabel(dev.status)} · {categoryLabel(dev.category)}
+          {statusLabel(dev.status)} ·{" "}
+          <span className="inline-flex items-center gap-1">
+            <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
+            {categoryLabel(dev.category)}
+          </span>
         </Badge>
         <SheetTitle className="text-2xl leading-tight font-bold">{dev.title}</SheetTitle>
         {dev.address && (
@@ -965,7 +1223,14 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
               <Select value={editCategory} onValueChange={(v) => setEditCategory(v as Category)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="z-[1200]">
-                  {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[c.value] }} />
+                        {c.label}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -983,6 +1248,39 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
             <Label htmlFor="ed">Description</Label>
             <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Site shape</Label>
+            {editShape ? (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
+                <span className="flex items-center gap-2 font-mono">
+                  {editShape.shape === "line" ? <Spline className="size-3.5 text-primary" /> : <Hexagon className="size-3.5 text-primary" />}
+                  {editShape.shape === "line" ? "Line" : "Outline"} · {editShape.points.length} points
+                </span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => onStartDraw(editShape.shape)} className="text-primary hover:underline">
+                    Redraw
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button type="button" onClick={() => setEditShape(null)} className="text-destructive hover:underline">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => onStartDraw("polygon")} className="gap-2">
+                  <Hexagon className="size-3.5" />
+                  Draw outline
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => onStartDraw("line")} className="gap-2">
+                  <Spline className="size-3.5" />
+                  Draw line
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label>Photos ({totalImages}/6)</Label>
             {(existingImages.length > 0 || newPreviews.length > 0) && (
@@ -1041,9 +1339,6 @@ function DevelopmentDetail({ dev, onChange }: { dev: Development; onChange: () =
               Cancel
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground font-mono">
-            Map outline isn't editable here yet.
-          </p>
         </form>
       ) : (
         <div className="mt-4 space-y-4">
