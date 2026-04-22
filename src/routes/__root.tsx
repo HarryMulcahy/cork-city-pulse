@@ -31,16 +31,16 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Cork Builds — Citizen Planning Map for Cork City" },
+      { title: "City Builds — Citizen Planning Map" },
       {
         name: "description",
         content:
-          "Track, submit and discuss construction and urban planning developments across Cork City on an open community map.",
+          "Track, submit and discuss construction and urban planning developments in any city on an open community map.",
       },
-      { property: "og:title", content: "Cork Builds — Citizen Planning Map for Cork City" },
+      { property: "og:title", content: "City Builds — Citizen Planning Map" },
       {
         property: "og:description",
-        content: "An open community map for Cork City developments.",
+        content: "An open community map for city developments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
