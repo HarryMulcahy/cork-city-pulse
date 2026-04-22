@@ -513,8 +513,9 @@ function HomePage() {
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{cityDevs.length}</span>{" "}
-                {cityDevs.length === 1 ? "development" : "developments"}
+                <span className="font-semibold text-foreground">{filteredDevs.length}</span>
+                {filtersActive && <span className="text-muted-foreground">/{cityDevs.length}</span>}{" "}
+                {filteredDevs.length === 1 ? "development" : "developments"}
                 {unreadCount > 0 && (
                   <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
                 )}
@@ -539,12 +540,80 @@ function HomePage() {
                 to contribute.
               </p>
             )}
+
+            {/* Filters */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Filters
+                </span>
+                {filtersActive && (
+                  <button
+                    onClick={() => {
+                      setCategoryFilter(new Set());
+                      setStatusFilter(new Set());
+                    }}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
+                <div className="flex flex-wrap gap-1">
+                  {CATEGORIES.map((c) => {
+                    const active = categoryFilter.has(c.value);
+                    const color = CATEGORY_COLORS[c.value];
+                    return (
+                      <button
+                        key={c.value}
+                        onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
+                        aria-pressed={active}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                          active
+                            ? "text-white border-transparent"
+                            : "bg-background hover:bg-secondary border-border text-foreground"
+                        }`}
+                        style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                <div className="flex flex-wrap gap-1">
+                  {STATUSES.map((s) => {
+                    const active = statusFilter.has(s.value);
+                    return (
+                      <button
+                        key={s.value}
+                        onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
+                        aria-pressed={active}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                          active
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background hover:bg-secondary border-border text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {cityDevs.length === 0 ? (
+            {filteredDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                No developments here yet. Be the first to drop a pin in {city.name}.
+                {cityDevs.length === 0
+                  ? `No developments here yet. Be the first to drop a pin in ${city.name}.`
+                  : "No developments match your filters."}
               </div>
             ) : (
               <ul
