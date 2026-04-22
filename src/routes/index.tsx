@@ -291,6 +291,16 @@ function HomePage() {
     [devs, city],
   );
 
+  const filteredDevs = useMemo(() => {
+    return cityDevs.filter((d) => {
+      if (categoryFilter.size > 0 && !categoryFilter.has(d.category)) return false;
+      if (statusFilter.size > 0 && !statusFilter.has(d.status)) return false;
+      return true;
+    });
+  }, [cityDevs, categoryFilter, statusFilter]);
+
+  const filtersActive = categoryFilter.size > 0 || statusFilter.size > 0;
+
   const isUnread = (d: Development) => {
     const seen = reads[d.id];
     return !seen || seen < d.last_activity_at;
