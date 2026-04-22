@@ -414,7 +414,7 @@ function HomePage() {
               center={city.center}
               bounds={city.bounds}
               cityKey={city.id}
-              developments={cityDevs.map((d) => ({
+              developments={filteredDevs.map((d) => ({
                 id: d.id,
                 latitude: d.latitude,
                 longitude: d.longitude,
@@ -424,7 +424,7 @@ function HomePage() {
                 shape: d.area?.shape,
               }))}
               selectedId={selected?.id ?? null}
-              onSelect={(id) => setSelected(cityDevs.find((d) => d.id === id) ?? null)}
+              onSelect={(id) => setSelected(filteredDevs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               pickedCategory={draft.category}
