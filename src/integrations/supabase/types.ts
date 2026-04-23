@@ -49,6 +49,9 @@ export type Database = {
       developments: {
         Row: {
           address: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           area_geojson: Json | null
           category: Database["public"]["Enums"]["dev_category"]
           created_at: string
@@ -57,12 +60,16 @@ export type Database = {
           images: string[]
           latitude: number
           longitude: number
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["dev_status"]
           title: string
           user_id: string
         }
         Insert: {
           address?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
@@ -71,12 +78,16 @@ export type Database = {
           images?: string[]
           latitude: number
           longitude: number
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["dev_status"]
           title: string
           user_id: string
         }
         Update: {
           address?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
@@ -85,6 +96,7 @@ export type Database = {
           images?: string[]
           latitude?: number
           longitude?: number
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["dev_status"]
           title?: string
           user_id?: string
@@ -109,14 +121,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          city_name: string | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          city_name?: string | null
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          city_name?: string | null
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_approver: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      app_role: "admin" | "city_mod" | "developer" | "user"
       dev_category:
         | "residential"
         | "commercial"
@@ -258,6 +302,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "city_mod", "developer", "user"],
       dev_category: [
         "residential",
         "commercial",
