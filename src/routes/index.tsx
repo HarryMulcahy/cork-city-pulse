@@ -33,6 +33,8 @@ import {
   Loader2,
   PanelLeftOpen,
   PanelLeftClose,
+  Maximize2,
+  Minimize2,
   Spline,
   Hexagon,
   ChevronDown,
