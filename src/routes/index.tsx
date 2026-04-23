@@ -213,7 +213,8 @@ function HomePage() {
   // Lifted submit-form draft so closing the dialog (e.g. while drawing) doesn't lose data.
   const [draft, setDraft] = useState<SubmitDraft>(EMPTY_DRAFT);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  type SidebarMode = "collapsed" | "side" | "full";
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("side");
   const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
   // Filters (multi-select). Empty set = "all".
