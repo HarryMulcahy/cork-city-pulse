@@ -1306,16 +1306,56 @@ function DevelopmentDetail({
     onChange();
   };
 
+  const approve = async () => {
+    if (!user) return;
+    setApproving(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({ approval_status: "approved", approved_by: user.id, approved_at: new Date().toISOString() })
+      .eq("id", dev.id);
+    setApproving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Approved — now visible on the public map");
+    onChange();
+  };
+
+  const reject = async () => {
+    if (!user) return;
+    const reason = prompt("Reason for rejection (optional):") ?? "";
+    setApproving(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({
+        approval_status: "rejected",
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: reason || null,
+      })
+      .eq("id", dev.id);
+    setApproving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Rejected");
+    onChange();
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SheetHeader className="px-0">
-        <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
-          {statusLabel(dev.status)} ·{" "}
-          <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
-            {categoryLabel(dev.category)}
-          </span>
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
+            {statusLabel(dev.status)} ·{" "}
+            <span className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
+              {categoryLabel(dev.category)}
+            </span>
+          </Badge>
+          {dev.approval_status === "pending" && (
+            <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
+          )}
+          {dev.approval_status === "rejected" && (
+            <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+          )}
+        </div>
         <SheetTitle className="text-2xl leading-tight font-bold">{dev.title}</SheetTitle>
         {dev.address && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
@@ -1323,6 +1363,36 @@ function DevelopmentDetail({
           </p>
         )}
       </SheetHeader>
+
+      {dev.approval_status === "pending" && isApprover && (
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+            <Clock className="size-3.5" /> Awaiting your review
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={approving} onClick={approve} className="gap-1.5 flex-1">
+              {approving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+              Approve
+            </Button>
+            <Button size="sm" variant="outline" disabled={approving} onClick={reject} className="gap-1.5 flex-1">
+              <XCircle className="size-3.5" />
+              Reject
+            </Button>
+          </div>
+        </div>
+      )}
+      {dev.approval_status === "pending" && !isApprover && dev.user_id === user?.id && (
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+          <Clock className="size-3.5 shrink-0" />
+          Pending review by a city moderator or developer.
+        </div>
+      )}
+      {dev.approval_status === "rejected" && (
+        <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          <p className="font-semibold flex items-center gap-1.5"><XCircle className="size-3.5" /> Rejected</p>
+          {dev.rejection_reason && <p className="mt-1">{dev.rejection_reason}</p>}
+        </div>
+      )}
 
       {dev.images.length > 0 && (
         <div className="mt-4 -mx-6">
