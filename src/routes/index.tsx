@@ -721,7 +721,10 @@ function HomePage() {
                         id={`dev-item-${d.id}`}
                         role="option"
                         aria-selected={isSelected}
-                        onClick={() => setSelected(d)}
+                        onClick={() => {
+                          setSelected(d);
+                          if (sidebarMode === "full") setSidebarMode("side");
+                        }}
                         className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                           isSelected
                             ? "bg-secondary border-l-4 pl-4"
