@@ -512,9 +512,9 @@ function HomePage() {
         </main>
 
         {/* Floating sidebar toggle (visible when collapsed) */}
-        {!sidebarOpen && (
+        {sidebarMode === "collapsed" && (
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarMode("side")}
             className="absolute top-4 left-4 z-[600] flex items-center gap-2 bg-card border border-border shadow-lg rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary transition"
             aria-label="Open developments list"
           >
@@ -530,10 +530,14 @@ function HomePage() {
 
         {/* Collapsible sidebar overlay */}
         <aside
-          className={`absolute top-0 left-0 bottom-0 z-[550] w-full sm:w-[400px] lg:w-[440px] bg-card border-r border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          className={`absolute top-0 left-0 bottom-0 z-[550] bg-card border-r border-border shadow-2xl flex flex-col transition-all duration-300 ease-out ${
+            sidebarMode === "full"
+              ? "w-full translate-x-0"
+              : sidebarMode === "side"
+                ? "w-full sm:w-[400px] lg:w-[440px] translate-x-0"
+                : "w-full sm:w-[400px] lg:w-[440px] -translate-x-full"
           }`}
-          aria-hidden={!sidebarOpen}
+          aria-hidden={sidebarMode === "collapsed"}
         >
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-2">
@@ -545,13 +549,23 @@ function HomePage() {
                   <> · <span className="text-primary font-semibold">{unreadCount} new</span></>
                 )}
               </p>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition p-1"
-                aria-label="Collapse sidebar"
-              >
-                <PanelLeftClose className="size-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setSidebarMode(sidebarMode === "full" ? "side" : "full")}
+                  className="text-muted-foreground hover:text-foreground transition p-1"
+                  aria-label={sidebarMode === "full" ? "Exit fullscreen" : "Expand to fullscreen"}
+                  title={sidebarMode === "full" ? "Side view" : "Fullscreen"}
+                >
+                  {sidebarMode === "full" ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                </button>
+                <button
+                  onClick={() => setSidebarMode("collapsed")}
+                  className="text-muted-foreground hover:text-foreground transition p-1"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose className="size-4" />
+                </button>
+              </div>
             </div>
             <Button onClick={startPicking} className="w-full mt-3 gap-2">
               <Plus className="size-4" />
