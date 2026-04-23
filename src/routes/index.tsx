@@ -1113,10 +1113,11 @@ function DevelopmentDetail({
   consumePendingShape,
   onStartDraw,
 }: DetailProps) {
-  const { user } = useAuth();
+  const { user, isApprover } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(dev.title);
   const [editDescription, setEditDescription] = useState(dev.description);
