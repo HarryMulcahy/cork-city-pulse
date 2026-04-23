@@ -1089,8 +1089,11 @@ function SubmitForm({
       </div>
       <Button type="submit" className="w-full gap-2" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />}
-        {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
+        {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Submit for review"}
       </Button>
+      <p className="text-[11px] text-muted-foreground text-center font-mono">
+        Submissions are reviewed by city moderators or developers before appearing on the public map.
+      </p>
     </form>
   );
 }
