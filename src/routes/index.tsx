@@ -562,71 +562,100 @@ function HomePage() {
                 to contribute.
               </p>
             )}
+            {user && myPendingCount > 0 && (
+              <Link
+                to="/submissions"
+                className="mt-2 flex items-center justify-between gap-2 text-xs px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 transition"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Clock className="size-3.5" />
+                  {myPendingCount} of your submission{myPendingCount === 1 ? "" : "s"} pending
+                </span>
+                <span className="font-mono">view →</span>
+              </Link>
+            )}
 
-            {/* Filters */}
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {/* Filters (collapsible) */}
+            <div className="mt-3">
+              <button
+                onClick={() => setFiltersOpen((v) => !v)}
+                className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition py-1"
+                aria-expanded={filtersOpen}
+              >
+                <span className="flex items-center gap-1.5">
+                  {filtersOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   Filters
+                  {filtersActive && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold normal-case tracking-normal">
+                      {categoryFilter.size + statusFilter.size}
+                    </span>
+                  )}
                 </span>
                 {filtersActive && (
-                  <button
-                    onClick={() => {
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setCategoryFilter(new Set());
                       setStatusFilter(new Set());
                     }}
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] text-primary hover:underline normal-case tracking-normal cursor-pointer"
                   >
                     Clear
-                  </button>
+                  </span>
                 )}
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
-                <div className="flex flex-wrap gap-1">
-                  {CATEGORIES.map((c) => {
-                    const active = categoryFilter.has(c.value);
-                    const color = CATEGORY_COLORS[c.value];
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
-                        aria-pressed={active}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
-                          active
-                            ? "text-white border-transparent"
-                            : "bg-background hover:bg-secondary border-border text-foreground"
-                        }`}
-                        style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
-                      >
-                        {c.label}
-                      </button>
-                    );
-                  })}
+              </button>
+              {filtersOpen && (
+                <div className="space-y-2 mt-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
+                    <div className="flex flex-wrap gap-1">
+                      {CATEGORIES.map((c) => {
+                        const active = categoryFilter.has(c.value);
+                        const color = CATEGORY_COLORS[c.value];
+                        return (
+                          <button
+                            key={c.value}
+                            onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
+                            aria-pressed={active}
+                            className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                              active
+                                ? "text-white border-transparent"
+                                : "bg-background hover:bg-secondary border-border text-foreground"
+                            }`}
+                            style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
+                          >
+                            {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                    <div className="flex flex-wrap gap-1">
+                      {STATUSES.map((s) => {
+                        const active = statusFilter.has(s.value);
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
+                            aria-pressed={active}
+                            className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                              active
+                                ? "bg-foreground text-background border-foreground"
+                                : "bg-background hover:bg-secondary border-border text-foreground"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
-                <div className="flex flex-wrap gap-1">
-                  {STATUSES.map((s) => {
-                    const active = statusFilter.has(s.value);
-                    return (
-                      <button
-                        key={s.value}
-                        onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
-                        aria-pressed={active}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
-                          active
-                            ? "bg-foreground text-background border-foreground"
-                            : "bg-background hover:bg-secondary border-border text-foreground"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
