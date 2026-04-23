@@ -137,6 +137,8 @@ interface Development {
   area: ShapeData | null;
   images: string[];
   created_at: string;
+  approval_status: "pending" | "approved" | "rejected";
+  rejection_reason: string | null;
   last_activity_at: string;
   comments_count: number;
   profiles?: { display_name: string } | null;
