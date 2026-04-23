@@ -217,6 +217,7 @@ function HomePage() {
   // Filters (multi-select). Empty set = "all".
   const [categoryFilter, setCategoryFilter] = useState<Set<Category>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const toggleInSet = <T,>(set: Set<T>, value: T): Set<T> => {
     const next = new Set(set);
     if (next.has(value)) next.delete(value);
