@@ -35,6 +35,11 @@ import {
   PanelLeftClose,
   Spline,
   Hexagon,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -132,6 +137,8 @@ interface Development {
   area: ShapeData | null;
   images: string[];
   created_at: string;
+  approval_status: "pending" | "approved" | "rejected";
+  rejection_reason: string | null;
   last_activity_at: string;
   comments_count: number;
   profiles?: { display_name: string } | null;
@@ -210,6 +217,7 @@ function HomePage() {
   // Filters (multi-select). Empty set = "all".
   const [categoryFilter, setCategoryFilter] = useState<Set<Category>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const toggleInSet = <T,>(set: Set<T>, value: T): Set<T> => {
     const next = new Set(set);
     if (next.has(value)) next.delete(value);
@@ -226,9 +234,11 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count"> & {
+    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason"> & {
       area_geojson: unknown;
       images: string[] | null;
+      approval_status?: "pending" | "approved" | "rejected" | null;
+      rejection_reason?: string | null;
     };
     const rows = (data ?? []) as RawRow[];
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
@@ -261,6 +271,8 @@ function HomePage() {
       const last = a?.last && a.last > r.created_at ? a.last : r.created_at;
       return {
         ...r,
+        approval_status: (r.approval_status ?? "approved") as "pending" | "approved" | "rejected",
+        rejection_reason: r.rejection_reason ?? null,
         area: parseShape(r.area_geojson),
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
@@ -287,8 +299,18 @@ function HomePage() {
   }, [selected?.id, selected?.last_activity_at]);
 
   const cityDevs = useMemo(
-    () => (city ? devs.filter((d) => inBounds(d.latitude, d.longitude, city.bounds)) : []),
+    () =>
+      city
+        ? devs.filter(
+            (d) => d.approval_status === "approved" && inBounds(d.latitude, d.longitude, city.bounds),
+          )
+        : [],
     [devs, city],
+  );
+
+  const myPendingCount = useMemo(
+    () => devs.filter((d) => d.approval_status === "pending" && d.user_id === user?.id).length,
+    [devs, user?.id],
   );
 
   const filteredDevs = useMemo(() => {
@@ -540,71 +562,100 @@ function HomePage() {
                 to contribute.
               </p>
             )}
+            {user && myPendingCount > 0 && (
+              <Link
+                to="/submissions"
+                className="mt-2 flex items-center justify-between gap-2 text-xs px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 transition"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Clock className="size-3.5" />
+                  {myPendingCount} of your submission{myPendingCount === 1 ? "" : "s"} pending
+                </span>
+                <span className="font-mono">view →</span>
+              </Link>
+            )}
 
-            {/* Filters */}
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {/* Filters (collapsible) */}
+            <div className="mt-3">
+              <button
+                onClick={() => setFiltersOpen((v) => !v)}
+                className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition py-1"
+                aria-expanded={filtersOpen}
+              >
+                <span className="flex items-center gap-1.5">
+                  {filtersOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   Filters
+                  {filtersActive && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold normal-case tracking-normal">
+                      {categoryFilter.size + statusFilter.size}
+                    </span>
+                  )}
                 </span>
                 {filtersActive && (
-                  <button
-                    onClick={() => {
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setCategoryFilter(new Set());
                       setStatusFilter(new Set());
                     }}
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] text-primary hover:underline normal-case tracking-normal cursor-pointer"
                   >
                     Clear
-                  </button>
+                  </span>
                 )}
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
-                <div className="flex flex-wrap gap-1">
-                  {CATEGORIES.map((c) => {
-                    const active = categoryFilter.has(c.value);
-                    const color = CATEGORY_COLORS[c.value];
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
-                        aria-pressed={active}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
-                          active
-                            ? "text-white border-transparent"
-                            : "bg-background hover:bg-secondary border-border text-foreground"
-                        }`}
-                        style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
-                      >
-                        {c.label}
-                      </button>
-                    );
-                  })}
+              </button>
+              {filtersOpen && (
+                <div className="space-y-2 mt-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Type</p>
+                    <div className="flex flex-wrap gap-1">
+                      {CATEGORIES.map((c) => {
+                        const active = categoryFilter.has(c.value);
+                        const color = CATEGORY_COLORS[c.value];
+                        return (
+                          <button
+                            key={c.value}
+                            onClick={() => setCategoryFilter((s) => toggleInSet(s, c.value))}
+                            aria-pressed={active}
+                            className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                              active
+                                ? "text-white border-transparent"
+                                : "bg-background hover:bg-secondary border-border text-foreground"
+                            }`}
+                            style={active ? { backgroundColor: color } : { borderColor: `${color}55` }}
+                          >
+                            {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                    <div className="flex flex-wrap gap-1">
+                      {STATUSES.map((s) => {
+                        const active = statusFilter.has(s.value);
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
+                            aria-pressed={active}
+                            className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                              active
+                                ? "bg-foreground text-background border-foreground"
+                                : "bg-background hover:bg-secondary border-border text-foreground"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
-                <div className="flex flex-wrap gap-1">
-                  {STATUSES.map((s) => {
-                    const active = statusFilter.has(s.value);
-                    return (
-                      <button
-                        key={s.value}
-                        onClick={() => setStatusFilter((set) => toggleInSet(set, s.value))}
-                        aria-pressed={active}
-                        className={`text-[11px] px-2 py-1 rounded-full border transition ${
-                          active
-                            ? "bg-foreground text-background border-foreground"
-                            : "bg-background hover:bg-secondary border-border text-foreground"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -897,7 +948,7 @@ function SubmitForm({
       toast.error(error.message);
       return;
     }
-    toast.success("Development added to the map");
+    toast.success("Submitted! Pending approval from a city moderator or developer.");
     onDone();
   };
 
@@ -1038,8 +1089,11 @@ function SubmitForm({
       </div>
       <Button type="submit" className="w-full gap-2" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />}
-        {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Add to map"}
+        {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Submit for review"}
       </Button>
+      <p className="text-[11px] text-muted-foreground text-center font-mono">
+        Submissions are reviewed by city moderators or developers before appearing on the public map.
+      </p>
     </form>
   );
 }
@@ -1059,10 +1113,11 @@ function DevelopmentDetail({
   consumePendingShape,
   onStartDraw,
 }: DetailProps) {
-  const { user } = useAuth();
+  const { user, isApprover } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(dev.title);
   const [editDescription, setEditDescription] = useState(dev.description);
@@ -1251,16 +1306,56 @@ function DevelopmentDetail({
     onChange();
   };
 
+  const approve = async () => {
+    if (!user) return;
+    setApproving(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({ approval_status: "approved", approved_by: user.id, approved_at: new Date().toISOString() })
+      .eq("id", dev.id);
+    setApproving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Approved — now visible on the public map");
+    onChange();
+  };
+
+  const reject = async () => {
+    if (!user) return;
+    const reason = prompt("Reason for rejection (optional):") ?? "";
+    setApproving(true);
+    const { error } = await supabase
+      .from("developments")
+      .update({
+        approval_status: "rejected",
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: reason || null,
+      })
+      .eq("id", dev.id);
+    setApproving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Rejected");
+    onChange();
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SheetHeader className="px-0">
-        <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
-          {statusLabel(dev.status)} ·{" "}
-          <span className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
-            {categoryLabel(dev.category)}
-          </span>
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
+            {statusLabel(dev.status)} ·{" "}
+            <span className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
+              {categoryLabel(dev.category)}
+            </span>
+          </Badge>
+          {dev.approval_status === "pending" && (
+            <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
+          )}
+          {dev.approval_status === "rejected" && (
+            <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+          )}
+        </div>
         <SheetTitle className="text-2xl leading-tight font-bold">{dev.title}</SheetTitle>
         {dev.address && (
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
@@ -1268,6 +1363,36 @@ function DevelopmentDetail({
           </p>
         )}
       </SheetHeader>
+
+      {dev.approval_status === "pending" && isApprover && (
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+            <Clock className="size-3.5" /> Awaiting your review
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={approving} onClick={approve} className="gap-1.5 flex-1">
+              {approving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+              Approve
+            </Button>
+            <Button size="sm" variant="outline" disabled={approving} onClick={reject} className="gap-1.5 flex-1">
+              <XCircle className="size-3.5" />
+              Reject
+            </Button>
+          </div>
+        </div>
+      )}
+      {dev.approval_status === "pending" && !isApprover && dev.user_id === user?.id && (
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+          <Clock className="size-3.5 shrink-0" />
+          Pending review by a city moderator or developer.
+        </div>
+      )}
+      {dev.approval_status === "rejected" && (
+        <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          <p className="font-semibold flex items-center gap-1.5"><XCircle className="size-3.5" /> Rejected</p>
+          {dev.rejection_reason && <p className="mt-1">{dev.rejection_reason}</p>}
+        </div>
+      )}
 
       {dev.images.length > 0 && (
         <div className="mt-4 -mx-6">
