@@ -298,8 +298,18 @@ function HomePage() {
   }, [selected?.id, selected?.last_activity_at]);
 
   const cityDevs = useMemo(
-    () => (city ? devs.filter((d) => inBounds(d.latitude, d.longitude, city.bounds)) : []),
+    () =>
+      city
+        ? devs.filter(
+            (d) => d.approval_status === "approved" && inBounds(d.latitude, d.longitude, city.bounds),
+          )
+        : [],
     [devs, city],
+  );
+
+  const myPendingCount = useMemo(
+    () => devs.filter((d) => d.approval_status === "pending" && d.user_id === user?.id).length,
+    [devs, user?.id],
   );
 
   const filteredDevs = useMemo(() => {
