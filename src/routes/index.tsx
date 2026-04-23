@@ -948,7 +948,7 @@ function SubmitForm({
       toast.error(error.message);
       return;
     }
-    toast.success("Development added to the map");
+    toast.success("Submitted! Pending approval from a city moderator or developer.");
     onDone();
   };
 
