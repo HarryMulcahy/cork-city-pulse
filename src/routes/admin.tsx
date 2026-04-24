@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Shield, Trash2, Loader2, UserPlus } from "lucide-react";
+import { Shield, Trash2, Loader2, UserPlus, Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -38,8 +38,40 @@ function AdminPage() {
   const [email, setEmail] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("city_mod");
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const canManage = isAdmin || isCityMod;
+
+  const runImport = async (city: string) => {
+    setImporting(true);
+    try {
+      const res = await fetch("/api/public/hooks/import-osm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city }),
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        inserted?: number;
+        skipped?: number;
+        failed?: number;
+        error?: string;
+      };
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? "Import failed");
+      } else {
+        toast.success(
+          `Imported ${json.inserted} new sites · ${json.skipped} already existed${
+            json.failed ? ` · ${json.failed} failed` : ""
+          }. Review them in the queue.`,
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
   // City mods can only assign city_mod
   const allowedRoles = isAdmin ? ASSIGNABLE_ROLES : ASSIGNABLE_ROLES.filter((r) => r.value === "city_mod");
 
@@ -193,6 +225,33 @@ function AdminPage() {
             </Button>
           </form>
         </section>
+
+        {isAdmin && (
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="font-semibold mb-1 flex items-center gap-2">
+              <Download className="size-4" /> Auto-import from OpenStreetMap
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pulls construction sites and large development polygons tagged in OSM. Imports go
+              into the review queue tagged as <code className="text-xs">osm</code> — approve them
+              like any other submission. Duplicates are skipped automatically.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => runImport("dublin")}
+                disabled={importing}
+                variant="outline"
+                className="gap-2"
+              >
+                {importing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Import Dublin sites
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Runs automatically once a week. Click to trigger now.
+              </span>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="px-5 py-3 border-b border-border flex items-center justify-between">

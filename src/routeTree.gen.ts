@@ -13,6 +13,7 @@ import { Route as SubmissionsRouteImport } from './routes/submissions'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksImportOsmRouteImport } from './routes/api/public/hooks/import-osm'
 
 const SubmissionsRoute = SubmissionsRouteImport.update({
   id: '/submissions',
@@ -34,18 +35,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksImportOsmRoute = ApiPublicHooksImportOsmRouteImport.update({
+  id: '/api/public/hooks/import-osm',
+  path: '/api/public/hooks/import-osm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,25 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/auth' | '/submissions'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/submissions'
+    | '/api/public/hooks/import-osm'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/auth' | '/submissions'
-  id: '__root__' | '/' | '/admin' | '/auth' | '/submissions'
+  to: '/' | '/admin' | '/auth' | '/submissions' | '/api/public/hooks/import-osm'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/submissions'
+    | '/api/public/hooks/import-osm'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +87,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   SubmissionsRoute: typeof SubmissionsRoute
+  ApiPublicHooksImportOsmRoute: typeof ApiPublicHooksImportOsmRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/import-osm': {
+      id: '/api/public/hooks/import-osm'
+      path: '/api/public/hooks/import-osm'
+      fullPath: '/api/public/hooks/import-osm'
+      preLoaderRoute: typeof ApiPublicHooksImportOsmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +135,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   SubmissionsRoute: SubmissionsRoute,
+  ApiPublicHooksImportOsmRoute: ApiPublicHooksImportOsmRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
