@@ -226,6 +226,33 @@ function AdminPage() {
           </form>
         </section>
 
+        {isAdmin && (
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="font-semibold mb-1 flex items-center gap-2">
+              <Download className="size-4" /> Auto-import from OpenStreetMap
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pulls construction sites and large development polygons tagged in OSM. Imports go
+              into the review queue tagged as <code className="text-xs">osm</code> — approve them
+              like any other submission. Duplicates are skipped automatically.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => runImport("dublin")}
+                disabled={importing}
+                variant="outline"
+                className="gap-2"
+              >
+                {importing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Import Dublin sites
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Runs automatically once a week. Click to trigger now.
+              </span>
+            </div>
+          </section>
+        )}
+
         <section className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="px-5 py-3 border-b border-border flex items-center justify-between">
             <h2 className="font-semibold">All role assignments</h2>
