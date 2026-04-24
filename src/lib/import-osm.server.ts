@@ -120,13 +120,27 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
   const query = buildOverpassQuery(preset.bbox);
   const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
+    headers: {
+      "Content-Type": "text/plain;charset=UTF-8",
+      Accept: "application/json, text/plain;q=0.9, */*;q=0.8",
+    },
+    body: query,
   });
   if (!overpassRes.ok) {
     throw new Error(`Overpass API failed: ${overpassRes.status} ${overpassRes.statusText}`);
   }
-  const json = (await overpassRes.json()) as OverpassResponse;
+  const contentType = overpassRes.headers.get("content-type") ?? "";
+  const raw = await overpassRes.text();
+  if (!contentType.includes("json")) {
+    throw new Error(`Overpass API returned unexpected content type: ${contentType || "unknown"}`);
+  }
+
+  let json: OverpassResponse;
+  try {
+    json = JSON.parse(raw) as OverpassResponse;
+  } catch {
+    throw new Error("Overpass API returned invalid JSON");
+  }
 
   let inserted = 0;
   let skipped = 0;
