@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Shield, Trash2, Loader2, UserPlus } from "lucide-react";
+import { Shield, Trash2, Loader2, UserPlus, Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -38,8 +38,40 @@ function AdminPage() {
   const [email, setEmail] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("city_mod");
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const canManage = isAdmin || isCityMod;
+
+  const runImport = async (city: string) => {
+    setImporting(true);
+    try {
+      const res = await fetch("/api/public/hooks/import-osm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city }),
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        inserted?: number;
+        skipped?: number;
+        failed?: number;
+        error?: string;
+      };
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? "Import failed");
+      } else {
+        toast.success(
+          `Imported ${json.inserted} new sites · ${json.skipped} already existed${
+            json.failed ? ` · ${json.failed} failed` : ""
+          }. Review them in the queue.`,
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
   // City mods can only assign city_mod
   const allowedRoles = isAdmin ? ASSIGNABLE_ROLES : ASSIGNABLE_ROLES.filter((r) => r.value === "city_mod");
 
