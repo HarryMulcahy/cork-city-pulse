@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AppRole } from "@/lib/auth";
+import { importOsmCity } from "@/lib/import-osm.functions";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,30 +44,17 @@ function AdminPage() {
 
   const canManage = isAdmin || isCityMod;
 
+  const importOsmCityFn = useServerFn(importOsmCity);
+
   const runImport = async (city: string) => {
     setImporting(true);
     try {
-      const res = await fetch("/api/public/hooks/import-osm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city }),
-      });
-      const json = (await res.json()) as {
-        success?: boolean;
-        inserted?: number;
-        skipped?: number;
-        failed?: number;
-        error?: string;
-      };
-      if (!res.ok || !json.success) {
-        toast.error(json.error ?? "Import failed");
-      } else {
-        toast.success(
-          `Imported ${json.inserted} new sites · ${json.skipped} already existed${
-            json.failed ? ` · ${json.failed} failed` : ""
-          }. Review them in the queue.`,
-        );
-      }
+      const result = await importOsmCityFn({ data: { city } });
+      toast.success(
+        `Imported ${result.inserted} new sites · ${result.skipped} already existed${
+          result.failed ? ` · ${result.failed} failed` : ""
+        }. Review them in the queue.`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Import failed");
     } finally {
