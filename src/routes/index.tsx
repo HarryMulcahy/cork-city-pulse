@@ -201,6 +201,8 @@ const EMPTY_DRAFT: SubmitDraft = {
 
 function HomePage() {
   const { user } = useAuth();
+  const { dev: devParam } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [city, setCity] = useState<City | null>(() => loadSavedCity());
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
