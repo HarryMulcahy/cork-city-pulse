@@ -82,6 +82,15 @@ function polygonFromGeometry(
   return { type: "Polygon", coordinates: [ring] };
 }
 
+function centerFromGeometry(geometry?: Array<{ lat: number; lon: number }>): { lat: number; lon: number } | null {
+  if (!geometry?.length) return null;
+  const totals = geometry.reduce(
+    (acc, point) => ({ lat: acc.lat + point.lat, lon: acc.lon + point.lon }),
+    { lat: 0, lon: 0 },
+  );
+  return { lat: totals.lat / geometry.length, lon: totals.lon / geometry.length };
+}
+
 function titleFor(tags: Record<string, string>, fallback: string): string {
   const name = tags.name || tags["name:en"] || tags.operator || tags.addr_street;
   if (name) return name.slice(0, 120);
@@ -149,7 +158,7 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
   for (const el of json.elements) {
     if (el.type === "node") continue;
     const tags = el.tags ?? {};
-    const center = el.center ?? (el.lat && el.lon ? { lat: el.lat, lon: el.lon } : null);
+    const center = el.center ?? (el.lat && el.lon ? { lat: el.lat, lon: el.lon } : null) ?? centerFromGeometry(el.geometry);
     if (!center) {
       skipped++;
       continue;
