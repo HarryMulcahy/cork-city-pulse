@@ -350,12 +350,17 @@ function HomePage() {
   );
 
   const filteredDevs = useMemo(() => {
-    return cityDevs.filter((d) => {
+    const base = cityDevs.filter((d) => {
       if (categoryFilter.size > 0 && !categoryFilter.has(d.category)) return false;
       if (statusFilter.size > 0 && !statusFilter.has(d.status)) return false;
       return true;
     });
-  }, [cityDevs, categoryFilter, statusFilter]);
+    // Always include the currently selected dev (e.g. a pending one opened from the review queue)
+    if (selected && !base.some((d) => d.id === selected.id)) {
+      return [selected, ...base];
+    }
+    return base;
+  }, [cityDevs, categoryFilter, statusFilter, selected]);
 
   const filtersActive = categoryFilter.size > 0 || statusFilter.size > 0;
 
