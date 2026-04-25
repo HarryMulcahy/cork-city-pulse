@@ -83,11 +83,13 @@ function saveReads(r: Record<string, string>) {
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
+type IndexSearch = { dev?: string };
 export const Route = createFileRoute("/")({
   component: HomePage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    dev: typeof search.dev === "string" ? search.dev : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): IndexSearch => {
+    const dev = typeof search.dev === "string" ? search.dev : undefined;
+    return dev ? { dev } : {};
+  },
 });
 
 type LatLng = { lat: number; lng: number };
