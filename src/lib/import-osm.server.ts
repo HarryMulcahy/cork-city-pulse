@@ -122,34 +122,47 @@ export interface ImportResult {
   failed: number;
 }
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+async function fetchOverpassJson(query: string): Promise<OverpassResponse> {
+  const errors: string[] = [];
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const overpassRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=UTF-8",
+          Accept: "application/json, text/plain;q=0.9, */*;q=0.8",
+        },
+        body: query,
+      });
+      const contentType = overpassRes.headers.get("content-type") ?? "";
+      const raw = await overpassRes.text();
+      if (!overpassRes.ok) {
+        errors.push(`${endpoint}: ${overpassRes.status} ${overpassRes.statusText}`);
+        continue;
+      }
+      if (!contentType.includes("json")) {
+        errors.push(`${endpoint}: unexpected content type ${contentType || "unknown"}`);
+        continue;
+      }
+      return JSON.parse(raw) as OverpassResponse;
+    } catch (err) {
+      errors.push(`${endpoint}: ${err instanceof Error ? err.message : "request failed"}`);
+    }
+  }
+  throw new Error(`Overpass API failed: ${errors.join("; ")}`);
+}
+
 export async function runOsmImport(cityKey: string, importerId: string): Promise<ImportResult> {
   const preset = CITY_PRESETS[cityKey];
   if (!preset) throw new Error(`Unknown city preset: ${cityKey}`);
 
   const query = buildOverpassQuery(preset.bbox);
-  const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=UTF-8",
-      Accept: "application/json, text/plain;q=0.9, */*;q=0.8",
-    },
-    body: query,
-  });
-  if (!overpassRes.ok) {
-    throw new Error(`Overpass API failed: ${overpassRes.status} ${overpassRes.statusText}`);
-  }
-  const contentType = overpassRes.headers.get("content-type") ?? "";
-  const raw = await overpassRes.text();
-  if (!contentType.includes("json")) {
-    throw new Error(`Overpass API returned unexpected content type: ${contentType || "unknown"}`);
-  }
-
-  let json: OverpassResponse;
-  try {
-    json = JSON.parse(raw) as OverpassResponse;
-  } catch {
-    throw new Error("Overpass API returned invalid JSON");
-  }
+  const json = await fetchOverpassJson(query);
 
   let inserted = 0;
   let skipped = 0;
