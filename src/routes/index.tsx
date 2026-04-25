@@ -83,8 +83,13 @@ function saveReads(r: Record<string, string>) {
 
 const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default: m.CorkMap })));
 
+type IndexSearch = { dev?: string };
 export const Route = createFileRoute("/")({
   component: HomePage,
+  validateSearch: (search: Record<string, unknown>): IndexSearch => {
+    const dev = typeof search.dev === "string" ? search.dev : undefined;
+    return dev ? { dev } : {};
+  },
 });
 
 type LatLng = { lat: number; lng: number };
@@ -196,6 +201,8 @@ const EMPTY_DRAFT: SubmitDraft = {
 
 function HomePage() {
   const { user } = useAuth();
+  const { dev: devParam } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [city, setCity] = useState<City | null>(() => loadSavedCity());
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
@@ -291,6 +298,32 @@ function HomePage() {
     loadDevs();
   }, []);
 
+  // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
+  useEffect(() => {
+    if (!devParam) return;
+    const found = devs.find((d) => d.id === devParam);
+    if (!found) return;
+    setSelected(found);
+    // If pinned dev sits outside the saved city bounds, switch the city view to fit it
+    if (city && !inBounds(found.latitude, found.longitude, city.bounds)) {
+      const c: City = {
+        id: `dev-${found.id}`,
+        name: found.title,
+        country: "",
+        center: [found.latitude, found.longitude],
+        bounds: [
+          [found.latitude - 0.05, found.longitude - 0.05],
+          [found.latitude + 0.05, found.longitude + 0.05],
+        ],
+      };
+      saveCity(c);
+      setCity(c);
+    }
+    // Clear the search param so subsequent clicks (e.g. close sheet) behave normally
+    navigate({ search: {}, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devParam, devs]);
+
   // Mark a development as read when it gets opened
   useEffect(() => {
     if (!selected) return;
@@ -317,12 +350,17 @@ function HomePage() {
   );
 
   const filteredDevs = useMemo(() => {
-    return cityDevs.filter((d) => {
+    const base = cityDevs.filter((d) => {
       if (categoryFilter.size > 0 && !categoryFilter.has(d.category)) return false;
       if (statusFilter.size > 0 && !statusFilter.has(d.status)) return false;
       return true;
     });
-  }, [cityDevs, categoryFilter, statusFilter]);
+    // Always include the currently selected dev (e.g. a pending one opened from the review queue)
+    if (selected && !base.some((d) => d.id === selected.id)) {
+      return [selected, ...base];
+    }
+    return base;
+  }, [cityDevs, categoryFilter, statusFilter, selected]);
 
   const filtersActive = categoryFilter.size > 0 || statusFilter.size > 0;
 
