@@ -82,6 +82,15 @@ function polygonFromGeometry(
   return { type: "Polygon", coordinates: [ring] };
 }
 
+function centerFromGeometry(geometry?: Array<{ lat: number; lon: number }>): { lat: number; lon: number } | null {
+  if (!geometry?.length) return null;
+  const totals = geometry.reduce(
+    (acc, point) => ({ lat: acc.lat + point.lat, lon: acc.lon + point.lon }),
+    { lat: 0, lon: 0 },
+  );
+  return { lat: totals.lat / geometry.length, lon: totals.lon / geometry.length };
+}
+
 function titleFor(tags: Record<string, string>, fallback: string): string {
   const name = tags.name || tags["name:en"] || tags.operator || tags.addr_street;
   if (name) return name.slice(0, 120);
@@ -113,34 +122,47 @@ export interface ImportResult {
   failed: number;
 }
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+async function fetchOverpassJson(query: string): Promise<OverpassResponse> {
+  const errors: string[] = [];
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const overpassRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=UTF-8",
+          Accept: "application/json, text/plain;q=0.9, */*;q=0.8",
+        },
+        body: query,
+      });
+      const contentType = overpassRes.headers.get("content-type") ?? "";
+      const raw = await overpassRes.text();
+      if (!overpassRes.ok) {
+        errors.push(`${endpoint}: ${overpassRes.status} ${overpassRes.statusText}`);
+        continue;
+      }
+      if (!contentType.includes("json")) {
+        errors.push(`${endpoint}: unexpected content type ${contentType || "unknown"}`);
+        continue;
+      }
+      return JSON.parse(raw) as OverpassResponse;
+    } catch (err) {
+      errors.push(`${endpoint}: ${err instanceof Error ? err.message : "request failed"}`);
+    }
+  }
+  throw new Error(`Overpass API failed: ${errors.join("; ")}`);
+}
+
 export async function runOsmImport(cityKey: string, importerId: string): Promise<ImportResult> {
   const preset = CITY_PRESETS[cityKey];
   if (!preset) throw new Error(`Unknown city preset: ${cityKey}`);
 
   const query = buildOverpassQuery(preset.bbox);
-  const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=UTF-8",
-      Accept: "application/json, text/plain;q=0.9, */*;q=0.8",
-    },
-    body: query,
-  });
-  if (!overpassRes.ok) {
-    throw new Error(`Overpass API failed: ${overpassRes.status} ${overpassRes.statusText}`);
-  }
-  const contentType = overpassRes.headers.get("content-type") ?? "";
-  const raw = await overpassRes.text();
-  if (!contentType.includes("json")) {
-    throw new Error(`Overpass API returned unexpected content type: ${contentType || "unknown"}`);
-  }
-
-  let json: OverpassResponse;
-  try {
-    json = JSON.parse(raw) as OverpassResponse;
-  } catch {
-    throw new Error("Overpass API returned invalid JSON");
-  }
+  const json = await fetchOverpassJson(query);
 
   let inserted = 0;
   let skipped = 0;
@@ -149,7 +171,7 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
   for (const el of json.elements) {
     if (el.type === "node") continue;
     const tags = el.tags ?? {};
-    const center = el.center ?? (el.lat && el.lon ? { lat: el.lat, lon: el.lon } : null);
+    const center = el.center ?? (el.lat && el.lon ? { lat: el.lat, lon: el.lon } : null) ?? centerFromGeometry(el.geometry);
     if (!center) {
       skipped++;
       continue;
