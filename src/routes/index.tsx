@@ -85,6 +85,9 @@ const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default
 
 export const Route = createFileRoute("/")({
   component: HomePage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    dev: typeof search.dev === "string" ? search.dev : undefined,
+  }),
 });
 
 type LatLng = { lat: number; lng: number };
