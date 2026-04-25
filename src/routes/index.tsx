@@ -298,6 +298,32 @@ function HomePage() {
     loadDevs();
   }, []);
 
+  // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
+  useEffect(() => {
+    if (!devParam) return;
+    const found = devs.find((d) => d.id === devParam);
+    if (!found) return;
+    setSelected(found);
+    // If pinned dev sits outside the saved city bounds, switch the city view to fit it
+    if (city && !inBounds(found.latitude, found.longitude, city.bounds)) {
+      const c: City = {
+        id: `dev-${found.id}`,
+        name: found.title,
+        country: "",
+        center: [found.latitude, found.longitude],
+        bounds: [
+          [found.latitude - 0.05, found.longitude - 0.05],
+          [found.latitude + 0.05, found.longitude + 0.05],
+        ],
+      };
+      saveCity(c);
+      setCity(c);
+    }
+    // Clear the search param so subsequent clicks (e.g. close sheet) behave normally
+    navigate({ search: {}, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devParam, devs]);
+
   // Mark a development as read when it gets opened
   useEffect(() => {
     if (!selected) return;
