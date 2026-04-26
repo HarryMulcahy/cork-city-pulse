@@ -588,20 +588,30 @@ function HomePage() {
                 )}
               </p>
               <div className="flex items-center gap-1">
+                {/* Fullscreen toggle: hidden on mobile (sidebar is already full-width) */}
                 <button
                   onClick={() => setSidebarMode(sidebarMode === "full" ? "side" : "full")}
-                  className="text-muted-foreground hover:text-foreground transition p-1"
+                  className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition p-1"
                   aria-label={sidebarMode === "full" ? "Exit fullscreen" : "Expand to fullscreen"}
                   title={sidebarMode === "full" ? "Side view" : "Fullscreen"}
                 >
                   {sidebarMode === "full" ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                 </button>
+                {/* Close button: icon-only on desktop, labelled "Close map" button on mobile */}
                 <button
                   onClick={() => setSidebarMode("collapsed")}
-                  className="text-muted-foreground hover:text-foreground transition p-1"
+                  className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition p-1"
                   aria-label="Collapse sidebar"
                 >
                   <PanelLeftClose className="size-4" />
+                </button>
+                <button
+                  onClick={() => setSidebarMode("collapsed")}
+                  className="sm:hidden inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary/80 transition"
+                  aria-label="Show map"
+                >
+                  <MapPin className="size-3.5" />
+                  Show map
                 </button>
               </div>
             </div>
