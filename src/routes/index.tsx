@@ -299,6 +299,29 @@ function HomePage() {
     loadDevs();
   }, []);
 
+  // Ensure a "General Discussion" thread exists for the active city.
+  useEffect(() => {
+    if (!city) return;
+    let cancelled = false;
+    ensureCityDiscussion({
+      data: {
+        cityId: city.id,
+        cityName: city.name,
+        lat: city.center[0],
+        lng: city.center[1],
+      },
+    })
+      .then(() => {
+        if (!cancelled) loadDevs();
+      })
+      .catch(() => {
+        // Non-critical: city discussion will simply not appear.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [city?.id]);
+
   // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
   useEffect(() => {
     if (!devParam) return;
