@@ -31,20 +31,20 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "City Builds — Citizen Planning Map" },
+      { title: "SiteWatch — Citizen Planning Map" },
       {
         name: "description",
         content:
           "Track, submit and discuss construction and urban planning developments in any city on an open community map.",
       },
-      { property: "og:title", content: "City Builds — Citizen Planning Map" },
+      { property: "og:title", content: "SiteWatch — Citizen Planning Map" },
       {
         property: "og:description",
         content: "An open community map for city developments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "City Builds — Citizen Planning Map" },
+      { name: "twitter:title", content: "SiteWatch — Citizen Planning Map" },
       { name: "description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
       { property: "og:description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
       { name: "twitter:description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
