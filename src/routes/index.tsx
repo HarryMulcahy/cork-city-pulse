@@ -247,11 +247,13 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason"> & {
+    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason" | "source" | "source_ref"> & {
       area_geojson: unknown;
       images: string[] | null;
       approval_status?: "pending" | "approved" | "rejected" | null;
       rejection_reason?: string | null;
+      source?: string | null;
+      source_ref?: string | null;
     };
     const rows = (data ?? []) as RawRow[];
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
@@ -286,6 +288,8 @@ function HomePage() {
         ...r,
         approval_status: (r.approval_status ?? "approved") as "pending" | "approved" | "rejected",
         rejection_reason: r.rejection_reason ?? null,
+        source: r.source ?? "user",
+        source_ref: r.source_ref ?? null,
         area: parseShape(r.area_geojson),
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
