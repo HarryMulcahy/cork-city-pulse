@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
+import { ensureCityDiscussion } from "@/lib/city-discussion.server";
 import { toast } from "sonner";
 import {
   MapPin,
@@ -146,6 +147,8 @@ interface Development {
   created_at: string;
   approval_status: "pending" | "approved" | "rejected";
   rejection_reason: string | null;
+  source: string;
+  source_ref: string | null;
   last_activity_at: string;
   comments_count: number;
   profiles?: { display_name: string } | null;
@@ -244,11 +247,13 @@ function HomePage() {
       toast.error("Failed to load developments");
       return;
     }
-    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason"> & {
+    type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason" | "source" | "source_ref"> & {
       area_geojson: unknown;
       images: string[] | null;
       approval_status?: "pending" | "approved" | "rejected" | null;
       rejection_reason?: string | null;
+      source?: string | null;
+      source_ref?: string | null;
     };
     const rows = (data ?? []) as RawRow[];
     const ids = Array.from(new Set(rows.map((r) => r.user_id)));
@@ -283,6 +288,8 @@ function HomePage() {
         ...r,
         approval_status: (r.approval_status ?? "approved") as "pending" | "approved" | "rejected",
         rejection_reason: r.rejection_reason ?? null,
+        source: r.source ?? "user",
+        source_ref: r.source_ref ?? null,
         area: parseShape(r.area_geojson),
         images: Array.isArray(r.images) ? r.images.filter((u): u is string => typeof u === "string") : [],
         profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null,
@@ -297,6 +304,29 @@ function HomePage() {
   useEffect(() => {
     loadDevs();
   }, []);
+
+  // Ensure a "General Discussion" thread exists for the active city.
+  useEffect(() => {
+    if (!city) return;
+    let cancelled = false;
+    ensureCityDiscussion({
+      data: {
+        cityId: city.id,
+        cityName: city.name,
+        lat: city.center[0],
+        lng: city.center[1],
+      },
+    })
+      .then(() => {
+        if (!cancelled) loadDevs();
+      })
+      .catch(() => {
+        // Non-critical: city discussion will simply not appear.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [city?.id]);
 
   // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
   useEffect(() => {
@@ -334,11 +364,24 @@ function HomePage() {
     });
   }, [selected?.id, selected?.last_activity_at]);
 
+  const cityDiscussion = useMemo(
+    () =>
+      city
+        ? devs.find(
+            (d) => d.source === "general" && d.source_ref === city.id && d.approval_status === "approved",
+          ) ?? null
+        : null,
+    [devs, city],
+  );
+
   const cityDevs = useMemo(
     () =>
       city
         ? devs.filter(
-            (d) => d.approval_status === "approved" && inBounds(d.latitude, d.longitude, city.bounds),
+            (d) =>
+              d.source !== "general" &&
+              d.approval_status === "approved" &&
+              inBounds(d.latitude, d.longitude, city.bounds),
           )
         : [],
     [devs, city],
@@ -356,7 +399,7 @@ function HomePage() {
       return true;
     });
     // Always include the currently selected dev (e.g. a pending one opened from the review queue)
-    if (selected && !base.some((d) => d.id === selected.id)) {
+    if (selected && selected.source !== "general" && !base.some((d) => d.id === selected.id)) {
       return [selected, ...base];
     }
     return base;
@@ -725,6 +768,49 @@ function HomePage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {cityDiscussion && (
+              <button
+                onClick={() => {
+                  setSelected(cityDiscussion);
+                  if (sidebarMode === "full") setSidebarMode("side");
+                }}
+                className={`w-full text-left px-5 py-4 border-b border-border transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                  selected?.id === cityDiscussion.id
+                    ? "bg-primary/10 border-l-4 border-l-primary pl-4"
+                    : "bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary/60 pl-4"
+                }`}
+                aria-label={`Open ${city.name} general discussion`}
+              >
+                <div className="flex gap-3 items-center">
+                  <div className="size-12 rounded-full shrink-0 bg-primary/15 flex items-center justify-center">
+                    <MessageSquare className="size-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="text-sm font-bold text-foreground">
+                        Talk about {city.name}
+                      </h3>
+                      <Badge className="bg-primary text-primary-foreground text-[10px] uppercase tracking-wider font-medium">
+                        Pinned
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      General discussion · no specific development needed
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground font-mono">
+                      {cityDiscussion.comments_count > 0 && (
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="size-3" />
+                          {cityDiscussion.comments_count}
+                        </span>
+                      )}
+                      {cityDiscussion.comments_count > 0 && <span>·</span>}
+                      <span>{formatRelative(cityDiscussion.last_activity_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )}
             {filteredDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                 {cityDevs.length === 0
