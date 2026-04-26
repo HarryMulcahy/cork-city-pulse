@@ -364,11 +364,24 @@ function HomePage() {
     });
   }, [selected?.id, selected?.last_activity_at]);
 
+  const cityDiscussion = useMemo(
+    () =>
+      city
+        ? devs.find(
+            (d) => d.source === "general" && d.source_ref === city.id && d.approval_status === "approved",
+          ) ?? null
+        : null,
+    [devs, city],
+  );
+
   const cityDevs = useMemo(
     () =>
       city
         ? devs.filter(
-            (d) => d.approval_status === "approved" && inBounds(d.latitude, d.longitude, city.bounds),
+            (d) =>
+              d.source !== "general" &&
+              d.approval_status === "approved" &&
+              inBounds(d.latitude, d.longitude, city.bounds),
           )
         : [],
     [devs, city],
@@ -386,7 +399,7 @@ function HomePage() {
       return true;
     });
     // Always include the currently selected dev (e.g. a pending one opened from the review queue)
-    if (selected && !base.some((d) => d.id === selected.id)) {
+    if (selected && selected.source !== "general" && !base.some((d) => d.id === selected.id)) {
       return [selected, ...base];
     }
     return base;
