@@ -23,7 +23,7 @@ export function Header({ city, onChangeCity }: Props) {
       <div className="flex items-center justify-between px-5 py-3 gap-4">
         <div className="flex items-baseline gap-3 min-w-0">
           <Link to="/" className="text-xl font-bold tracking-tight shrink-0">
-            City Builds
+            SiteWatch
           </Link>
           {city && onChangeCity && (
             <button
