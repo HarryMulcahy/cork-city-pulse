@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -26,7 +25,8 @@ export const ensureCityDiscussion = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
-    // Try to find an existing general discussion for this city
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const { data: existing } = await supabaseAdmin
       .from("developments")
       .select("id")
