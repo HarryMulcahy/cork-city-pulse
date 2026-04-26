@@ -768,6 +768,49 @@ function HomePage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {cityDiscussion && (
+              <button
+                onClick={() => {
+                  setSelected(cityDiscussion);
+                  if (sidebarMode === "full") setSidebarMode("side");
+                }}
+                className={`w-full text-left px-5 py-4 border-b border-border transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                  selected?.id === cityDiscussion.id
+                    ? "bg-primary/10 border-l-4 border-l-primary pl-4"
+                    : "bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary/60 pl-4"
+                }`}
+                aria-label={`Open ${city.name} general discussion`}
+              >
+                <div className="flex gap-3 items-center">
+                  <div className="size-12 rounded-full shrink-0 bg-primary/15 flex items-center justify-center">
+                    <MessageSquare className="size-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="text-sm font-bold text-foreground">
+                        Talk about {city.name}
+                      </h3>
+                      <Badge className="bg-primary text-primary-foreground text-[10px] uppercase tracking-wider font-medium">
+                        Pinned
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      General discussion · no specific development needed
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground font-mono">
+                      {cityDiscussion.comments_count > 0 && (
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="size-3" />
+                          {cityDiscussion.comments_count}
+                        </span>
+                      )}
+                      {cityDiscussion.comments_count > 0 && <span>·</span>}
+                      <span>{formatRelative(cityDiscussion.last_activity_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )}
             {filteredDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                 {cityDevs.length === 0
