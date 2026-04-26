@@ -1,0 +1,1 @@
+ALTER TABLE public.developments DROP CONSTRAINT IF EXISTS developments_user_id_fkey;
