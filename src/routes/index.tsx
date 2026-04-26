@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
+import { ensureCityDiscussion } from "@/lib/city-discussion.server";
 import { toast } from "sonner";
 import {
   MapPin,
