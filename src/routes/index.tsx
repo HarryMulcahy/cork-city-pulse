@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
@@ -43,6 +50,12 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  MoreVertical,
+  Trash2,
+  Tag,
+  Activity,
+  Ruler,
+  Globe2,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
