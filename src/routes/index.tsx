@@ -1618,6 +1618,34 @@ function DevelopmentDetail({
         </div>
       )}
 
+      {/* Quick-info grid (2x2, scannable in sunlight) */}
+      {dev.source !== "general" && (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <QuickInfo
+            icon={<Tag className="size-3.5" />}
+            label="Type"
+            value={categoryLabel(dev.category)}
+            color={CATEGORY_COLORS[dev.category]}
+          />
+          <QuickInfo
+            icon={<Activity className="size-3.5" />}
+            label="Status"
+            value={statusLabel(dev.status)}
+          />
+          <QuickInfo
+            icon={<MessageSquare className="size-3.5" />}
+            label="Activity"
+            value={`${dev.comments_count} comment${dev.comments_count === 1 ? "" : "s"}`}
+          />
+          <QuickInfo
+            icon={<Globe2 className="size-3.5" />}
+            label="Location"
+            value={dev.address ? dev.address.split(",")[0] : `${dev.latitude.toFixed(3)}, ${dev.longitude.toFixed(3)}`}
+            mono={!dev.address}
+          />
+        </div>
+      )}
+
       {editing && isOwner ? (
         <form onSubmit={saveEdit} className="mt-4 space-y-4">
           <div className="space-y-1.5">
