@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PRESET_CITIES, searchCities, type City } from "@/lib/cities";
 import { Loader2, MapPin, Search } from "lucide-react";
+import logoUrl from "@/assets/sitewatch-logo.png";
 
 interface Props {
   onPick: (city: City) => void;
