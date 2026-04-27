@@ -415,6 +415,16 @@ function HomePage() {
   };
 
   const handlePick = (lat: number, lng: number) => {
+    if (pickTarget === "edit") {
+      setPendingPoint({ lat, lng });
+      setPickMode(false);
+      const id = pendingEditId.current;
+      if (id) {
+        const found = devs.find((d) => d.id === id);
+        if (found) setSelected(found);
+      }
+      return;
+    }
     setPickedPoint({ lat, lng });
     setSubmitOpen(true);
     setPickMode(false);
@@ -428,6 +438,7 @@ function HomePage() {
     // Reset only when starting a brand-new submission
     setDraft(EMPTY_DRAFT);
     setPendingShape(null);
+    setPickTarget("submit");
     setPickMode(true);
     setSelected(null);
     toast("Tap anywhere on the map to drop your pin");
