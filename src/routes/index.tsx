@@ -535,7 +535,7 @@ function HomePage() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <Header city={city} onChangeCity={handleChangeCity} />
+      <Header city={city} onChangeCity={handleChangeCity} pendingCount={myPendingCount} />
       <div className="flex-1 relative min-h-0">
         {/* Full-screen Map */}
         <main className="absolute inset-0">
@@ -684,29 +684,17 @@ function HomePage() {
                 </button>
               </div>
             </div>
-            <Button onClick={startPicking} className="w-full mt-3 gap-2">
+            <Button onClick={startPicking} className="btn-cta w-full mt-3 gap-2 h-11 rounded-md">
               <Plus className="size-4" />
               Submit a development
             </Button>
             {!user && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link to="/auth" className="text-primary hover:underline">
+                <Link to="/auth" className="text-primary hover:underline font-semibold">
                   Sign in
                 </Link>{" "}
                 to contribute.
               </p>
-            )}
-            {user && myPendingCount > 0 && (
-              <Link
-                to="/submissions"
-                className="mt-2 flex items-center justify-between gap-2 text-xs px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 transition"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Clock className="size-3.5" />
-                  {myPendingCount} of your submission{myPendingCount === 1 ? "" : "s"} pending
-                </span>
-                <span className="font-mono">view →</span>
-              </Link>
             )}
 
             {/* Filters (collapsible) */}
