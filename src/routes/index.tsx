@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
@@ -43,6 +50,11 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  MoreVertical,
+  Trash2,
+  Tag,
+  Activity,
+  Globe2,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -522,7 +534,7 @@ function HomePage() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <Header city={city} onChangeCity={handleChangeCity} />
+      <Header city={city} onChangeCity={handleChangeCity} pendingCount={myPendingCount} />
       <div className="flex-1 relative min-h-0">
         {/* Full-screen Map */}
         <main className="absolute inset-0">
@@ -671,29 +683,17 @@ function HomePage() {
                 </button>
               </div>
             </div>
-            <Button onClick={startPicking} className="w-full mt-3 gap-2">
+            <Button onClick={startPicking} className="btn-cta w-full mt-3 gap-2 h-11 rounded-md">
               <Plus className="size-4" />
               Submit a development
             </Button>
             {!user && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link to="/auth" className="text-primary hover:underline">
+                <Link to="/auth" className="text-primary hover:underline font-semibold">
                   Sign in
                 </Link>{" "}
                 to contribute.
               </p>
-            )}
-            {user && myPendingCount > 0 && (
-              <Link
-                to="/submissions"
-                className="mt-2 flex items-center justify-between gap-2 text-xs px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 transition"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Clock className="size-3.5" />
-                  {myPendingCount} of your submission{myPendingCount === 1 ? "" : "s"} pending
-                </span>
-                <span className="font-mono">view →</span>
-              </Link>
             )}
 
             {/* Filters (collapsible) */}
@@ -1617,6 +1617,34 @@ function DevelopmentDetail({
         </div>
       )}
 
+      {/* Quick-info grid (2x2, scannable in sunlight) */}
+      {dev.source !== "general" && (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <QuickInfo
+            icon={<Tag className="size-3.5" />}
+            label="Type"
+            value={categoryLabel(dev.category)}
+            color={CATEGORY_COLORS[dev.category]}
+          />
+          <QuickInfo
+            icon={<Activity className="size-3.5" />}
+            label="Status"
+            value={statusLabel(dev.status)}
+          />
+          <QuickInfo
+            icon={<MessageSquare className="size-3.5" />}
+            label="Activity"
+            value={`${dev.comments_count} comment${dev.comments_count === 1 ? "" : "s"}`}
+          />
+          <QuickInfo
+            icon={<Globe2 className="size-3.5" />}
+            label="Location"
+            value={dev.address ? dev.address.split(",")[0] : `${dev.latitude.toFixed(3)}, ${dev.longitude.toFixed(3)}`}
+            mono={!dev.address}
+          />
+        </div>
+      )}
+
       {editing && isOwner ? (
         <form onSubmit={saveEdit} className="mt-4 space-y-4">
           <div className="space-y-1.5">
@@ -1765,21 +1793,36 @@ function DevelopmentDetail({
         </form>
       ) : (
         <div className="mt-4 space-y-4">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>
-          <div className="text-xs text-muted-foreground font-mono pt-2 border-t border-border flex items-center justify-between gap-3">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{dev.description}</p>
+          <div className="text-xs text-foreground/70 pt-2 border-t border-border flex items-center justify-between gap-3">
             <span>
-              Submitted by {dev.profiles?.display_name ?? "anon"} · {new Date(dev.created_at).toLocaleDateString()}
-            </span>
-            {isOwner && (
-              <span className="flex items-center gap-2">
-                <button onClick={() => setEditing(true)} className="text-primary hover:underline flex items-center gap-1">
-                  <Pencil className="size-3" /> edit
-                </button>
-                <span>·</span>
-                <button onClick={remove} className="text-destructive hover:underline">
-                  delete
-                </button>
+              Submitted by{" "}
+              <span className="font-bold text-foreground">{dev.profiles?.display_name ?? "anon"}</span>{" "}
+              ·{" "}
+              <span className="font-bold text-foreground font-mono">
+                {new Date(dev.created_at).toLocaleDateString()}
               </span>
+            </span>
+            {isOwner && dev.source !== "general" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="inline-flex items-center justify-center size-8 -mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+                    aria-label="Actions"
+                  >
+                    <MoreVertical className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-[1200]">
+                  <DropdownMenuItem onClick={() => setEditing(true)} className="gap-2">
+                    <Pencil className="size-3.5" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={remove} className="gap-2 text-destructive focus:text-destructive">
+                    <Trash2 className="size-3.5" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -1828,6 +1871,27 @@ function DevelopmentDetail({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+interface QuickInfoProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  color?: string;
+  mono?: boolean;
+}
+function QuickInfo({ icon, label, value, color, mono }: QuickInfoProps) {
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2.5 flex flex-col gap-1">
+      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-foreground/60">
+        <span style={color ? { color } : undefined}>{icon}</span>
+        {label}
+      </span>
+      <span className={`text-sm font-bold text-foreground leading-tight truncate ${mono ? "font-mono" : ""}`} title={value}>
+        {value}
+      </span>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -6,6 +6,7 @@ import {
   Polygon,
   Polyline,
   CircleMarker,
+  ZoomControl,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -52,6 +53,24 @@ function makeCategoryIcon(category: Category, variant: "default" | "selected" | 
     iconSize: [32, 40],
     iconAnchor: [16, 38],
     popupAnchor: [0, -34],
+  });
+}
+
+function makeClusterIcon(count: number) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        width:38px;height:38px;border-radius:9999px;
+        background:#1a2b3c;color:#ffcc00;
+        border:2px solid #ffcc00;
+        display:flex;align-items:center;justify-content:center;
+        font-weight:800;font-size:13px;font-family:system-ui;
+        box-shadow:0 3px 10px rgb(0 0 0 / 0.35);
+        cursor:pointer;
+      ">${count}</div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
   });
 }
 
@@ -113,12 +132,14 @@ function ClickHandler({
   onPick,
   onDrawPoint,
   onDrawFinish,
+  onMapClick,
 }: {
   pickMode: boolean;
   drawMode: boolean;
   onPick?: (lat: number, lng: number) => void;
   onDrawPoint?: (lat: number, lng: number) => void;
   onDrawFinish?: () => void;
+  onMapClick?: () => void;
 }) {
   useMapEvents({
     click(e) {
@@ -126,6 +147,8 @@ function ClickHandler({
         onDrawPoint(e.latlng.lat, e.latlng.lng);
       } else if (pickMode && onPick) {
         onPick(e.latlng.lat, e.latlng.lng);
+      } else if (onMapClick) {
+        onMapClick();
       }
     },
     dblclick() {
@@ -133,6 +156,99 @@ function ClickHandler({
     },
   });
   return null;
+}
+
+/** Group dev points by ~1m precision so we can spiderfy coincident pins. */
+function clusterCoincident(points: DevPoint[]) {
+  const groups = new Map<string, DevPoint[]>();
+  for (const p of points) {
+    // 5 decimals ≈ 1.1m, treat as same spot
+    const key = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
+    const arr = groups.get(key);
+    if (arr) arr.push(p);
+    else groups.set(key, [p]);
+  }
+  return Array.from(groups.values());
+}
+
+/** Compute spiderfy positions in screen-pixel space so the radius is consistent at any zoom. */
+function spiderfyOffsets(count: number, radiusPx: number) {
+  const offsets: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+    offsets.push({ x: Math.cos(angle) * radiusPx, y: Math.sin(angle) * radiusPx });
+  }
+  return offsets;
+}
+
+/** Renders an expanded spider with leg lines + offset child pins. */
+function Spider({
+  center,
+  items,
+  selectedId,
+  onSelect,
+}: {
+  center: LatLng;
+  items: DevPoint[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+}) {
+  const map = useMap();
+  const [tick, setTick] = useState(0);
+  // Recompute on zoom/move so legs/positions stay anchored to the same lat/lng
+  useEffect(() => {
+    const handler = () => setTick((t) => t + 1);
+    map.on("zoomend moveend", handler);
+    return () => {
+      map.off("zoomend moveend", handler);
+    };
+  }, [map]);
+
+  const radius = items.length <= 6 ? 38 : 38 + (items.length - 6) * 4;
+  const offsets = useMemo(
+    () => spiderfyOffsets(items.length, radius),
+    [items.length, radius],
+  );
+  const centerPx = map.latLngToLayerPoint([center.lat, center.lng]);
+  const positioned = items.map((c, i) => {
+    const px = L.point(centerPx.x + offsets[i].x, centerPx.y + offsets[i].y);
+    const ll = map.layerPointToLatLng(px);
+    return { dev: c, latlng: ll };
+  });
+
+  // Force re-render when map moves
+  void tick;
+
+  return (
+    <>
+      {positioned.map(({ dev, latlng }) => (
+        <Polyline
+          key={`leg-${dev.id}`}
+          positions={[
+            [center.lat, center.lng],
+            [latlng.lat, latlng.lng],
+          ]}
+          pathOptions={{ color: "#1a2b3c", weight: 1.5, opacity: 0.5 }}
+          interactive={false}
+        />
+      ))}
+      {positioned.map(({ dev, latlng }) => {
+        const isSelected = dev.id === selectedId;
+        return (
+          <Marker
+            key={`spider-${dev.id}`}
+            position={[latlng.lat, latlng.lng]}
+            icon={makeCategoryIcon(dev.category, isSelected ? "selected" : "default")}
+            zIndexOffset={isSelected ? 1200 : 1100}
+            keyboard
+            title={dev.title}
+            alt={dev.title}
+            eventHandlers={{ click: () => onSelect?.(dev.id) }}
+          />
+        );
+      })}
+    </>
+  );
 }
 
 export function CorkMap({
@@ -156,6 +272,21 @@ export function CorkMap({
   const cursor = drawMode || pickMode ? "crosshair" : undefined;
   const drawColor = CATEGORY_COLORS[drawCategory] ?? CATEGORY_COLORS.other;
 
+  // Track which coincident-pin cluster is currently spiderfied (by group key).
+  const [openCluster, setOpenCluster] = useState<string | null>(null);
+
+  const clusters = useMemo(() => clusterCoincident(developments), [developments]);
+
+  // If the selected dev belongs to a multi-pin cluster, auto-open it.
+  useEffect(() => {
+    if (!selectedId) return;
+    const grp = clusters.find((g) => g.length > 1 && g.some((d) => d.id === selectedId));
+    if (grp) {
+      const key = `${grp[0].latitude.toFixed(5)},${grp[0].longitude.toFixed(5)}`;
+      setOpenCluster(key);
+    }
+  }, [selectedId, clusters]);
+
   return (
     <MapContainer
       key={cityKey}
@@ -168,7 +299,9 @@ export function CorkMap({
       style={{ height: "100%", width: "100%", cursor }}
       scrollWheelZoom
       doubleClickZoom={!drawMode}
+      zoomControl={false}
     >
+      <ZoomControl position="bottomright" />
       <TileLayer
         attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
@@ -179,6 +312,7 @@ export function CorkMap({
         onPick={onPick}
         onDrawPoint={onDrawPoint}
         onDrawFinish={onDrawFinish}
+        onMapClick={() => setOpenCluster(null)}
       />
       <FlyTo id={selectedId} points={developments} />
 
@@ -216,19 +350,48 @@ export function CorkMap({
         );
       })}
 
-      {/* Pins */}
-      {developments.map((d) => {
-        const isSelected = d.id === selectedId;
+      {/* Pins — single per group; multi-pin groups render as a cluster badge */}
+      {clusters.map((group) => {
+        const first = group[0];
+        const key = `${first.latitude.toFixed(5)},${first.longitude.toFixed(5)}`;
+        if (group.length === 1) {
+          const d = first;
+          const isSelected = d.id === selectedId;
+          return (
+            <Marker
+              key={d.id}
+              position={[d.latitude, d.longitude]}
+              icon={makeCategoryIcon(d.category, isSelected ? "selected" : "default")}
+              zIndexOffset={isSelected ? 1000 : 0}
+              keyboard
+              title={d.title}
+              alt={d.title}
+              eventHandlers={{ click: () => onSelect?.(d.id) }}
+            />
+          );
+        }
+        // Multiple pins at same spot
+        const isOpen = openCluster === key;
+        if (!isOpen) {
+          return (
+            <Marker
+              key={`cluster-${key}`}
+              position={[first.latitude, first.longitude]}
+              icon={makeClusterIcon(group.length)}
+              zIndexOffset={500}
+              title={`${group.length} developments here — click to expand`}
+              alt={`${group.length} developments`}
+              eventHandlers={{ click: () => setOpenCluster(key) }}
+            />
+          );
+        }
         return (
-          <Marker
-            key={d.id}
-            position={[d.latitude, d.longitude]}
-            icon={makeCategoryIcon(d.category, isSelected ? "selected" : "default")}
-            zIndexOffset={isSelected ? 1000 : 0}
-            keyboard
-            title={d.title}
-            alt={d.title}
-            eventHandlers={{ click: () => onSelect?.(d.id) }}
+          <Spider
+            key={`spider-group-${key}`}
+            center={{ lat: first.latitude, lng: first.longitude }}
+            items={group}
+            selectedId={selectedId}
+            onSelect={(id) => onSelect?.(id)}
           />
         );
       })}

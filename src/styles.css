@@ -64,27 +64,27 @@
 }
 
 :root {
-  --radius: 0.25rem;
-  /* Rebel Red & Stone palette */
-  --background: oklch(0.97 0.005 60);          /* warm stone #f5f3ee */
-  --foreground: oklch(0.25 0.005 60);          /* near-black #2d2d2d */
-  --card: oklch(0.99 0.003 60);
-  --card-foreground: oklch(0.25 0.005 60);
-  --popover: oklch(0.99 0.003 60);
-  --popover-foreground: oklch(0.25 0.005 60);
-  --primary: oklch(0.6 0.16 35);               /* rebel red #c4654a */
-  --primary-foreground: oklch(0.98 0.005 60);
-  --secondary: oklch(0.92 0.008 60);           /* stone #e8e4dd */
-  --secondary-foreground: oklch(0.25 0.005 60);
-  --muted: oklch(0.92 0.008 60);
-  --muted-foreground: oklch(0.45 0.01 60);
-  --accent: oklch(0.6 0.16 35);
-  --accent-foreground: oklch(0.98 0.005 60);
+  --radius: 0.375rem;
+  /* SiteWatch — Navy + Construction Yellow */
+  --background: oklch(0.98 0.003 250);          /* near-white */
+  --foreground: oklch(0.22 0.03 250);           /* deep navy ink */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.03 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.03 250);
+  --primary: oklch(0.27 0.04 250);              /* navy #1a2b3c */
+  --primary-foreground: oklch(0.99 0.003 250);
+  --secondary: oklch(0.95 0.008 250);
+  --secondary-foreground: oklch(0.22 0.03 250);
+  --muted: oklch(0.95 0.008 250);
+  --muted-foreground: oklch(0.38 0.02 250);     /* AA contrast on background */
+  --accent: oklch(0.86 0.18 90);                /* construction yellow #ffcc00 */
+  --accent-foreground: oklch(0.22 0.03 250);    /* navy text on yellow */
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.98 0.005 60);
-  --border: oklch(0.88 0.008 60);
-  --input: oklch(0.88 0.008 60);
-  --ring: oklch(0.6 0.16 35);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
+  --ring: oklch(0.86 0.18 90);
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -209,13 +209,16 @@
   filter: drop-shadow(0 0 0 3px var(--color-ring)) drop-shadow(0 4px 6px rgb(0 0 0 / 0.35));
 }
 .dev-pin--selected {
-  transform: scale(1.22);
-  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.45));
+  transform: scale(1.28);
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.5));
 }
 .dev-pin--selected::before {
-  outline: 2px solid var(--color-foreground);
+  /* Construction yellow ring for active pins */
+  background: #ffcc00 !important;
+  outline: 2px solid #1a2b3c;
   outline-offset: -2px;
 }
+.dev-pin--selected > svg { color: #1a2b3c; }
 .dev-pin--selected:hover {
   transform: scale(1.27);
 }
@@ -227,4 +230,22 @@
   50% { transform: scale(1.15); }
 }
 
+/* Spiderfy lines + helper pins */
+.spider-leg {
+  stroke: #1a2b3c;
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
 
+/* High-visibility CTA: construction yellow on navy text */
+.btn-cta {
+  background-color: #ffcc00;
+  color: #1a2b3c;
+  font-weight: 700;
+  border: 1px solid #1a2b3c;
+  box-shadow: 0 1px 0 #1a2b3c, 0 4px 12px rgb(255 204 0 / 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.btn-cta:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn-cta:active { transform: translateY(0); box-shadow: 0 1px 0 #1a2b3c, 0 2px 6px rgb(255 204 0 / 0.35); }
