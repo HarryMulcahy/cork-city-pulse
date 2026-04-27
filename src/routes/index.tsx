@@ -1280,6 +1280,9 @@ interface DetailProps {
   pendingShape: ShapeData | null;
   consumePendingShape: () => void;
   onStartDraw: (shape: ShapeKind) => void;
+  pendingPoint: LatLng | null;
+  consumePendingPoint: () => void;
+  onStartMovePin: () => void;
 }
 
 function DevelopmentDetail({
@@ -1288,6 +1291,9 @@ function DevelopmentDetail({
   pendingShape,
   consumePendingShape,
   onStartDraw,
+  pendingPoint,
+  consumePendingPoint,
+  onStartMovePin,
 }: DetailProps) {
   const { user, isApprover } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
