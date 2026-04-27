@@ -1342,6 +1342,16 @@ function DevelopmentDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShape]);
 
+  // Pick up a freshly-moved pin point from the parent after returning from pick mode.
+  useEffect(() => {
+    if (pendingPoint) {
+      setEditPoint(pendingPoint);
+      setEditing(true);
+      consumePendingPoint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPoint]);
+
   useEffect(() => () => newPreviews.forEach((u) => URL.revokeObjectURL(u)), [newPreviews]);
 
   const totalImages = existingImages.length + newFiles.length;
