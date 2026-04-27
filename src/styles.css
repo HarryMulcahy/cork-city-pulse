@@ -230,4 +230,22 @@
   50% { transform: scale(1.15); }
 }
 
+/* Spiderfy lines + helper pins */
+.spider-leg {
+  stroke: #1a2b3c;
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
 
+/* High-visibility CTA: construction yellow on navy text */
+.btn-cta {
+  background-color: #ffcc00;
+  color: #1a2b3c;
+  font-weight: 700;
+  border: 1px solid #1a2b3c;
+  box-shadow: 0 1px 0 #1a2b3c, 0 4px 12px rgb(255 204 0 / 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.btn-cta:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn-cta:active { transform: translateY(0); box-shadow: 0 1px 0 #1a2b3c, 0 2px 6px rgb(255 204 0 / 0.35); }
