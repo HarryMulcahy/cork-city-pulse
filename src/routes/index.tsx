@@ -1794,21 +1794,36 @@ function DevelopmentDetail({
         </form>
       ) : (
         <div className="mt-4 space-y-4">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{dev.description}</p>
-          <div className="text-xs text-muted-foreground font-mono pt-2 border-t border-border flex items-center justify-between gap-3">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{dev.description}</p>
+          <div className="text-xs text-foreground/70 pt-2 border-t border-border flex items-center justify-between gap-3">
             <span>
-              Submitted by {dev.profiles?.display_name ?? "anon"} · {new Date(dev.created_at).toLocaleDateString()}
-            </span>
-            {isOwner && (
-              <span className="flex items-center gap-2">
-                <button onClick={() => setEditing(true)} className="text-primary hover:underline flex items-center gap-1">
-                  <Pencil className="size-3" /> edit
-                </button>
-                <span>·</span>
-                <button onClick={remove} className="text-destructive hover:underline">
-                  delete
-                </button>
+              Submitted by{" "}
+              <span className="font-bold text-foreground">{dev.profiles?.display_name ?? "anon"}</span>{" "}
+              ·{" "}
+              <span className="font-bold text-foreground font-mono">
+                {new Date(dev.created_at).toLocaleDateString()}
               </span>
+            </span>
+            {isOwner && dev.source !== "general" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="inline-flex items-center justify-center size-8 -mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+                    aria-label="Actions"
+                  >
+                    <MoreVertical className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-[1200]">
+                  <DropdownMenuItem onClick={() => setEditing(true)} className="gap-2">
+                    <Pencil className="size-3.5" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={remove} className="gap-2 text-destructive focus:text-destructive">
+                    <Trash2 className="size-3.5" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
