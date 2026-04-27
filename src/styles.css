@@ -209,13 +209,16 @@
   filter: drop-shadow(0 0 0 3px var(--color-ring)) drop-shadow(0 4px 6px rgb(0 0 0 / 0.35));
 }
 .dev-pin--selected {
-  transform: scale(1.22);
-  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.45));
+  transform: scale(1.28);
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.5));
 }
 .dev-pin--selected::before {
-  outline: 2px solid var(--color-foreground);
+  /* Construction yellow ring for active pins */
+  background: #ffcc00 !important;
+  outline: 2px solid #1a2b3c;
   outline-offset: -2px;
 }
+.dev-pin--selected > svg { color: #1a2b3c; }
 .dev-pin--selected:hover {
   transform: scale(1.27);
 }
