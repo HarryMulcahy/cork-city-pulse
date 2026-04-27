@@ -966,6 +966,15 @@ function HomePage() {
                 pendingEditId.current = selected.id;
                 startDrawing("edit", shape);
               }}
+              pendingPoint={pickTarget === "edit" ? pendingPoint : null}
+              consumePendingPoint={() => setPendingPoint(null)}
+              onStartMovePin={() => {
+                pendingEditId.current = selected.id;
+                setPickTarget("edit");
+                setPickMode(true);
+                setSelected(null);
+                toast("Tap on the map to move the pin");
+              }}
             />
           )}
         </SheetContent>
