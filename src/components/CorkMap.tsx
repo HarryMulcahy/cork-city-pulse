@@ -372,27 +372,27 @@ export function CorkMap({
         }
         // Multiple pins at same spot
         const isOpen = openCluster === key;
+        if (!isOpen) {
+          return (
+            <Marker
+              key={`cluster-${key}`}
+              position={[first.latitude, first.longitude]}
+              icon={makeClusterIcon(group.length)}
+              zIndexOffset={500}
+              title={`${group.length} developments here — click to expand`}
+              alt={`${group.length} developments`}
+              eventHandlers={{ click: () => setOpenCluster(key) }}
+            />
+          );
+        }
         return (
-          <div key={`cluster-${key}`}>
-            {!isOpen && (
-              <Marker
-                position={[first.latitude, first.longitude]}
-                icon={makeClusterIcon(group.length)}
-                zIndexOffset={500}
-                title={`${group.length} developments here — click to expand`}
-                alt={`${group.length} developments`}
-                eventHandlers={{ click: () => setOpenCluster(key) }}
-              />
-            )}
-            {isOpen && (
-              <Spider
-                center={{ lat: first.latitude, lng: first.longitude }}
-                children={group}
-                selectedId={selectedId}
-                onSelect={(id) => onSelect?.(id)}
-              />
-            )}
-          </div>
+          <Spider
+            key={`spider-group-${key}`}
+            center={{ lat: first.latitude, lng: first.longitude }}
+            children={group}
+            selectedId={selectedId}
+            onSelect={(id) => onSelect?.(id)}
+          />
         );
       })}
 
