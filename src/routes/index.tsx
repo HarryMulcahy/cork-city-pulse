@@ -219,6 +219,8 @@ function HomePage() {
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
   const [pendingShape, setPendingShape] = useState<ShapeData | null>(null);
   const [drawTarget, setDrawTarget] = useState<"submit" | "edit">("submit");
+  const [pickTarget, setPickTarget] = useState<"submit" | "edit">("submit");
+  const [pendingPoint, setPendingPoint] = useState<LatLng | null>(null);
 
   // Lifted submit-form draft so closing the dialog (e.g. while drawing) doesn't lose data.
   const [draft, setDraft] = useState<SubmitDraft>(EMPTY_DRAFT);
@@ -413,6 +415,16 @@ function HomePage() {
   };
 
   const handlePick = (lat: number, lng: number) => {
+    if (pickTarget === "edit") {
+      setPendingPoint({ lat, lng });
+      setPickMode(false);
+      const id = pendingEditId.current;
+      if (id) {
+        const found = devs.find((d) => d.id === id);
+        if (found) setSelected(found);
+      }
+      return;
+    }
     setPickedPoint({ lat, lng });
     setSubmitOpen(true);
     setPickMode(false);
@@ -426,6 +438,7 @@ function HomePage() {
     // Reset only when starting a brand-new submission
     setDraft(EMPTY_DRAFT);
     setPendingShape(null);
+    setPickTarget("submit");
     setPickMode(true);
     setSelected(null);
     toast("Tap anywhere on the map to drop your pin");
@@ -953,6 +966,15 @@ function HomePage() {
                 pendingEditId.current = selected.id;
                 startDrawing("edit", shape);
               }}
+              pendingPoint={pickTarget === "edit" ? pendingPoint : null}
+              consumePendingPoint={() => setPendingPoint(null)}
+              onStartMovePin={() => {
+                pendingEditId.current = selected.id;
+                setPickTarget("edit");
+                setPickMode(true);
+                setSelected(null);
+                toast("Tap on the map to move the pin");
+              }}
             />
           )}
         </SheetContent>
@@ -1258,6 +1280,9 @@ interface DetailProps {
   pendingShape: ShapeData | null;
   consumePendingShape: () => void;
   onStartDraw: (shape: ShapeKind) => void;
+  pendingPoint: LatLng | null;
+  consumePendingPoint: () => void;
+  onStartMovePin: () => void;
 }
 
 function DevelopmentDetail({
@@ -1266,6 +1291,9 @@ function DevelopmentDetail({
   pendingShape,
   consumePendingShape,
   onStartDraw,
+  pendingPoint,
+  consumePendingPoint,
+  onStartMovePin,
 }: DetailProps) {
   const { user, isApprover } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -1279,6 +1307,7 @@ function DevelopmentDetail({
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
   const [editShape, setEditShape] = useState<ShapeData | null>(dev.area);
+  const [editPoint, setEditPoint] = useState<LatLng>({ lat: dev.latitude, lng: dev.longitude });
   const [savingEdit, setSavingEdit] = useState(false);
   const [existingImages, setExistingImages] = useState<string[]>(dev.images);
   const [newFiles, setNewFiles] = useState<File[]>([]);
@@ -1294,6 +1323,7 @@ function DevelopmentDetail({
     setEditCategory(dev.category);
     setEditStatus(dev.status);
     setEditShape(dev.area);
+    setEditPoint({ lat: dev.latitude, lng: dev.longitude });
     setExistingImages(dev.images);
     setNewFiles([]);
     setNewPreviews((prev) => {
@@ -1311,6 +1341,16 @@ function DevelopmentDetail({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShape]);
+
+  // Pick up a freshly-moved pin point from the parent after returning from pick mode.
+  useEffect(() => {
+    if (pendingPoint) {
+      setEditPoint(pendingPoint);
+      setEditing(true);
+      consumePendingPoint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPoint]);
 
   useEffect(() => () => newPreviews.forEach((u) => URL.revokeObjectURL(u)), [newPreviews]);
 
@@ -1397,6 +1437,8 @@ function DevelopmentDetail({
         category: editCategory,
         status: editStatus,
         images: finalImages,
+        latitude: editPoint.lat,
+        longitude: editPoint.lng,
         area_geojson: editShape ? { type: editShape.shape, points: editShape.points } : null,
       })
       .eq("id", dev.id);
@@ -1615,6 +1657,19 @@ function DevelopmentDetail({
           <div className="space-y-1.5">
             <Label htmlFor="ed">Description</Label>
             <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Pin location</Label>
+            <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
+              <span className="flex items-center gap-2 font-mono">
+                <MapPin className="size-3.5 text-primary" />
+                {editPoint.lat.toFixed(5)}, {editPoint.lng.toFixed(5)}
+              </span>
+              <button type="button" onClick={onStartMovePin} className="text-primary hover:underline">
+                Move pin
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
