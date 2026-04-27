@@ -1874,3 +1874,24 @@ function DevelopmentDetail({
     </div>
   );
 }
+
+interface QuickInfoProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  color?: string;
+  mono?: boolean;
+}
+function QuickInfo({ icon, label, value, color, mono }: QuickInfoProps) {
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2.5 flex flex-col gap-1">
+      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-foreground/60">
+        <span style={color ? { color } : undefined}>{icon}</span>
+        {label}
+      </span>
+      <span className={`text-sm font-bold text-foreground leading-tight truncate ${mono ? "font-mono" : ""}`} title={value}>
+        {value}
+      </span>
+    </div>
+  );
+}
