@@ -184,12 +184,12 @@ function spiderfyOffsets(count: number, radiusPx: number) {
 /** Renders an expanded spider with leg lines + offset child pins. */
 function Spider({
   center,
-  children,
+  items,
   selectedId,
   onSelect,
 }: {
   center: LatLng;
-  children: DevPoint[];
+  items: DevPoint[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
 }) {
@@ -204,13 +204,13 @@ function Spider({
     };
   }, [map]);
 
-  const radius = children.length <= 6 ? 38 : 38 + (children.length - 6) * 4;
+  const radius = items.length <= 6 ? 38 : 38 + (items.length - 6) * 4;
   const offsets = useMemo(
-    () => spiderfyOffsets(children.length, radius),
-    [children.length, radius],
+    () => spiderfyOffsets(items.length, radius),
+    [items.length, radius],
   );
   const centerPx = map.latLngToLayerPoint([center.lat, center.lng]);
-  const positioned = children.map((c, i) => {
+  const positioned = items.map((c, i) => {
     const px = L.point(centerPx.x + offsets[i].x, centerPx.y + offsets[i].y);
     const ll = map.layerPointToLatLng(px);
     return { dev: c, latlng: ll };
@@ -389,7 +389,7 @@ export function CorkMap({
           <Spider
             key={`spider-group-${key}`}
             center={{ lat: first.latitude, lng: first.longitude }}
-            children={group}
+            items={group}
             selectedId={selectedId}
             onSelect={(id) => onSelect?.(id)}
           />
