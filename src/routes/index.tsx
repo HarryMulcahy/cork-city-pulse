@@ -1437,6 +1437,8 @@ function DevelopmentDetail({
         category: editCategory,
         status: editStatus,
         images: finalImages,
+        latitude: editPoint.lat,
+        longitude: editPoint.lng,
         area_geojson: editShape ? { type: editShape.shape, points: editShape.points } : null,
       })
       .eq("id", dev.id);
