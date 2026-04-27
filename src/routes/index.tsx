@@ -1307,6 +1307,7 @@ function DevelopmentDetail({
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
   const [editShape, setEditShape] = useState<ShapeData | null>(dev.area);
+  const [editPoint, setEditPoint] = useState<LatLng>({ lat: dev.latitude, lng: dev.longitude });
   const [savingEdit, setSavingEdit] = useState(false);
   const [existingImages, setExistingImages] = useState<string[]>(dev.images);
   const [newFiles, setNewFiles] = useState<File[]>([]);
