@@ -1323,6 +1323,7 @@ function DevelopmentDetail({
     setEditCategory(dev.category);
     setEditStatus(dev.status);
     setEditShape(dev.area);
+    setEditPoint({ lat: dev.latitude, lng: dev.longitude });
     setExistingImages(dev.images);
     setNewFiles([]);
     setNewPreviews((prev) => {
