@@ -1660,6 +1660,19 @@ function DevelopmentDetail({
           </div>
 
           <div className="space-y-1.5">
+            <Label>Pin location</Label>
+            <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
+              <span className="flex items-center gap-2 font-mono">
+                <MapPin className="size-3.5 text-primary" />
+                {editPoint.lat.toFixed(5)}, {editPoint.lng.toFixed(5)}
+              </span>
+              <button type="button" onClick={onStartMovePin} className="text-primary hover:underline">
+                Move pin
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Site shape</Label>
             {editShape ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
