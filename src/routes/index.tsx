@@ -219,6 +219,8 @@ function HomePage() {
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
   const [pendingShape, setPendingShape] = useState<ShapeData | null>(null);
   const [drawTarget, setDrawTarget] = useState<"submit" | "edit">("submit");
+  const [pickTarget, setPickTarget] = useState<"submit" | "edit">("submit");
+  const [pendingPoint, setPendingPoint] = useState<LatLng | null>(null);
 
   // Lifted submit-form draft so closing the dialog (e.g. while drawing) doesn't lose data.
   const [draft, setDraft] = useState<SubmitDraft>(EMPTY_DRAFT);
