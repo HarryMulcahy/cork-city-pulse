@@ -54,7 +54,6 @@ import {
   Trash2,
   Tag,
   Activity,
-  Ruler,
   Globe2,
 } from "lucide-react";
 
