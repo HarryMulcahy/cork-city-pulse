@@ -1059,36 +1059,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
         </aside>
       </div>
 
-      {/* Detail sheet */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto z-[1100]">
-          {selected && (
-            <DevelopmentDetail
-              dev={selected}
-              onChange={loadDevs}
-              pendingShape={drawTarget === "edit" && pendingShape ? pendingShape : null}
-              consumePendingShape={() => {
-                setPendingShape(null);
-              }}
-              onStartDraw={(shape) => {
-                pendingEditId.current = selected.id;
-                startDrawing("edit", shape);
-              }}
-              pendingPoint={pickTarget === "edit" ? pendingPoint : null}
-              consumePendingPoint={() => setPendingPoint(null)}
-              onStartMovePin={() => {
-                pendingEditId.current = selected.id;
-                setPickTarget("edit");
-                setPickMode(true);
-                setSelected(null);
-                toast("Tap on the map to move the pin");
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Submit dialog */}
+      {/* Detail panel is rendered inline inside the sidebar above. */}
       <Dialog
         open={submitOpen}
         onOpenChange={(o) => {
