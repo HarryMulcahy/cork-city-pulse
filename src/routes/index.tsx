@@ -1969,6 +1969,8 @@ function DevelopmentDetail({
           </p>
         )}
       </div>
+        </div>
+      </div>
     </div>
   );
 }
