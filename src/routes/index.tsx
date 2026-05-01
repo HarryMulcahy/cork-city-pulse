@@ -1355,6 +1355,8 @@ function SubmitForm({
 
 interface DetailProps {
   dev: Development;
+  cityName: string;
+  onBack: () => void;
   onChange: () => void;
   pendingShape: ShapeData | null;
   consumePendingShape: () => void;
@@ -1366,6 +1368,8 @@ interface DetailProps {
 
 function DevelopmentDetail({
   dev,
+  cityName,
+  onBack,
   onChange,
   pendingShape,
   consumePendingShape,
