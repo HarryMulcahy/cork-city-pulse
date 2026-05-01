@@ -233,7 +233,35 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   const { user } = useAuth();
   const navigate = useNavigate();
   const router = useRouter();
-  const [city, setCity] = useState<City | null>(() => loadSavedCity());
+  const [city, setCityState] = useState<City | null>(() => loadSavedCity());
+  // Wrap setCity so picking a new city also reflects in the URL.
+  const setCity = (next: City | null) => {
+    setCityState(next);
+    if (next) {
+      saveCity(next);
+      const slug = citySlug(next);
+      navigate({ to: "/city/$citySlug/{-$projectSlug}", params: { citySlug: slug, projectSlug: undefined } });
+    }
+  };
+  // Helper: navigate to a development's stacked URL.
+  const openDevelopmentRoute = (d: Development | null) => {
+    if (!city) {
+      setSelected(d);
+      return;
+    }
+    const cSlug = citySlug(city);
+    if (d) {
+      navigate({
+        to: "/city/$citySlug/{-$projectSlug}",
+        params: { citySlug: cSlug, projectSlug: projectSlug(d) },
+      });
+    } else {
+      navigate({
+        to: "/city/$citySlug/{-$projectSlug}",
+        params: { citySlug: cSlug, projectSlug: undefined },
+      });
+    }
+  };
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
