@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
-import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
+import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { ensureCityDiscussion } from "@/lib/city-discussion.functions";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,7 @@ import {
   Tag,
   Activity,
   Globe2,
+  ArrowLeft,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
