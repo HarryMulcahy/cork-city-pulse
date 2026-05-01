@@ -363,6 +363,20 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     loadDevs();
   }, []);
 
+  // If the URL provides a city slug but our state doesn't match, try to resolve it.
+  useEffect(() => {
+    if (!routeCitySlug) return;
+    if (city && citySlug(city) === routeCitySlug) return;
+    const fromPreset = PRESET_CITIES.find((c) => citySlug(c) === routeCitySlug);
+    if (fromPreset) {
+      setCityState(fromPreset);
+      saveCity(fromPreset);
+    }
+    // Else: keep whatever city is loaded (fall back to saved). The url slug will
+    // be normalised next time the user picks a city from the search screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeCitySlug]);
+
   // Ensure a "General Discussion" thread exists for the active city.
   useEffect(() => {
     if (!city) return;
