@@ -633,7 +633,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 shape: d.area?.shape,
               }))}
               selectedId={selected?.id ?? null}
-              onSelect={(id) => setSelected(filteredDevs.find((d) => d.id === id) ?? null)}
+              onSelect={(id) => openDevelopmentRoute(filteredDevs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               pickedCategory={draft.category}
