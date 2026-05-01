@@ -99,12 +99,17 @@ const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default
 
 type IndexSearch = { dev?: string };
 export const Route = createFileRoute("/")({
-  component: HomePage,
+  component: HomePageRoute,
   validateSearch: (search: Record<string, unknown>): IndexSearch => {
     const dev = typeof search.dev === "string" ? search.dev : undefined;
     return dev ? { dev } : {};
   },
 });
+
+function HomePageRoute() {
+  const { dev } = Route.useSearch();
+  return <HomePage devSearchParam={dev} />;
+}
 
 type LatLng = { lat: number; lng: number };
 type ShapeKind = "polygon" | "line";
