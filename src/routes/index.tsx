@@ -359,8 +359,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
 
   // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
   useEffect(() => {
-    if (!devParam) return;
-    const found = devs.find((d) => d.id === devParam);
+    if (!devSearchParam) return;
+    const found = devs.find((d) => d.id === devSearchParam);
     if (!found) return;
     setSelected(found);
     // If pinned dev sits outside the saved city bounds, switch the city view to fit it
@@ -378,10 +378,30 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       saveCity(c);
       setCity(c);
     }
-    // Clear the search param so subsequent clicks (e.g. close sheet) behave normally
-    navigate({ search: {}, replace: true });
+    // Replace the legacy ?dev= URL with the canonical /city/<slug>/<project> route.
+    const cSlug = citySlug(city ?? { name: found.title, id: `dev-${found.id}` });
+    navigate({
+      to: "/city/$citySlug/$projectSlug",
+      params: { citySlug: cSlug, projectSlug: projectSlug(found) },
+      replace: true,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [devParam, devs]);
+  }, [devSearchParam, devs]);
+
+  // Resolve URL → selected (when user navigates via /city/.../<projectSlug> or hits Back)
+  useEffect(() => {
+    if (!routeProjectSlug) {
+      // No project in URL → clear selection (covers browser Back from a project page).
+      setSelected((cur) => (cur ? null : cur));
+      return;
+    }
+    const tail = projectSlugIdTail(routeProjectSlug);
+    const found = devs.find((d) => {
+      if (tail && d.id.replace(/-/g, "").toLowerCase().startsWith(tail)) return true;
+      return projectSlug(d) === routeProjectSlug;
+    });
+    if (found) setSelected(found);
+  }, [routeProjectSlug, devs]);
 
   // Mark a development as read when it gets opened
   useEffect(() => {
