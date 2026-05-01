@@ -1618,30 +1618,71 @@ function DevelopmentDetail({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <SheetHeader className="px-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
-            {statusLabel(dev.status)} ·{" "}
-            <span className="inline-flex items-center gap-1">
-              <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
-              {categoryLabel(dev.category)}
-            </span>
-          </Badge>
-          {dev.approval_status === "pending" && (
-            <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
-          )}
-          {dev.approval_status === "rejected" && (
-            <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+    <div className="flex flex-col h-full bg-background">
+      {/* Sticky Back bar */}
+      <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-3 bg-card/95 backdrop-blur border-b border-border">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 -ml-1 px-2 py-1.5 rounded-md text-sm font-semibold text-foreground hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition"
+          aria-label={`Back to ${cityName}`}
+        >
+          <ArrowLeft className="size-4" />
+          <span className="truncate max-w-[200px]">Back to {cityName}</span>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Hero image — full width of the panel */}
+        {dev.images.length > 0 && (
+          <div className="w-full bg-secondary border-b border-border">
+            <img
+              src={dev.images[0]}
+              alt={dev.title}
+              className="block w-full max-h-[420px] object-cover"
+            />
+            {dev.images.length > 1 && (
+              <div className="px-6 py-3 grid grid-cols-4 gap-2 max-w-3xl mx-auto">
+                {dev.images.slice(1).map((src, i) => (
+                  <a
+                    key={src}
+                    href={src}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="aspect-square rounded-md overflow-hidden border border-border hover:opacity-80 transition"
+                  >
+                    <img src={src} alt={`${dev.title} photo ${i + 2}`} className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Centered, max-width content */}
+        <div className="px-6 py-6 max-w-3xl mx-auto">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
+              {statusLabel(dev.status)} ·{" "}
+              <span className="inline-flex items-center gap-1">
+                <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
+                {categoryLabel(dev.category)}
+              </span>
+            </Badge>
+            {dev.approval_status === "pending" && (
+              <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
+            )}
+            {dev.approval_status === "rejected" && (
+              <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+            )}
+          </div>
+          <h1 className="text-3xl leading-tight font-bold tracking-tight">{dev.title}</h1>
+          {dev.address && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <MapPin className="size-3.5" /> {dev.address}
+            </p>
           )}
         </div>
-        <SheetTitle className="text-2xl leading-tight font-bold">{dev.title}</SheetTitle>
-        {dev.address && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            <MapPin className="size-3.5" /> {dev.address}
-          </p>
-        )}
-      </SheetHeader>
 
       {dev.approval_status === "pending" && isApprover && (
         <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
