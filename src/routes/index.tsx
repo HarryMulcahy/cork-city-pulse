@@ -862,7 +862,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
             {cityDiscussion && (
               <button
                 onClick={() => {
-                  setSelected(cityDiscussion);
+                  openDevelopmentRoute(cityDiscussion);
                   if (sidebarMode === "full") setSidebarMode("side");
                 }}
                 className={`w-full text-left px-5 py-4 border-b border-border transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
@@ -920,19 +920,19 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                   const idx = selected ? filteredDevs.findIndex((d) => d.id === selected.id) : -1;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelected(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelected(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
                   } else if (e.key === "Home") {
                     e.preventDefault();
-                    setSelected(filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[0]);
                   } else if (e.key === "End") {
                     e.preventDefault();
-                    setSelected(filteredDevs[filteredDevs.length - 1]);
+                    openDevelopmentRoute(filteredDevs[filteredDevs.length - 1]);
                   } else if (e.key === "Escape" && selected) {
                     e.preventDefault();
-                    setSelected(null);
+                    openDevelopmentRoute(null);
                   }
                 }}
               >
@@ -947,7 +947,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => {
-                          setSelected(d);
+                          openDevelopmentRoute(d);
                           if (sidebarMode === "full") setSidebarMode("side");
                         }}
                         className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
