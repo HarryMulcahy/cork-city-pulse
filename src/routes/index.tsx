@@ -27,6 +27,7 @@ import {
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
+import { PRESET_CITIES } from "@/lib/cities";
 import { ensureCityDiscussion } from "@/lib/city-discussion.functions";
 import { toast } from "sonner";
 import {
