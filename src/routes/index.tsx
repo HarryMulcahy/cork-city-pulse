@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, lazy, Suspense, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
@@ -220,10 +220,19 @@ const EMPTY_DRAFT: SubmitDraft = {
   previews: [],
 };
 
-function HomePage() {
+interface HomePageProps {
+  /** Legacy ?dev=<id> deep link (from review queue / submissions list). */
+  devSearchParam?: string;
+  /** Slug of the city in the URL, when rendered via /city/$citySlug. */
+  routeCitySlug?: string;
+  /** Slug of the focused project in the URL, when rendered via /city/$citySlug/$projectSlug. */
+  routeProjectSlug?: string;
+}
+
+export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: HomePageProps = {}) {
   const { user } = useAuth();
-  const { dev: devParam } = Route.useSearch();
-  const navigate = Route.useNavigate();
+  const navigate = useNavigate();
+  const router = useRouter();
   const [city, setCity] = useState<City | null>(() => loadSavedCity());
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
