@@ -381,7 +381,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     // Replace the legacy ?dev= URL with the canonical /city/<slug>/<project> route.
     const cSlug = citySlug(city ?? { name: found.title, id: `dev-${found.id}` });
     navigate({
-      to: "/city/$citySlug/$projectSlug",
+      to: "/city/$citySlug/{-$projectSlug}",
       params: { citySlug: cSlug, projectSlug: projectSlug(found) },
       replace: true,
     });
