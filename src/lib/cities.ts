@@ -8,6 +8,43 @@ export interface City {
   bounds: [[number, number], [number, number]];
 }
 
+/** URL-safe slug, lowercase, dash-separated. Falls back to "untitled". */
+export function slugify(input: string): string {
+  return (
+    (input || "")
+      .toString()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "untitled"
+  );
+}
+
+/** Slug for a city — name + country code suffix when available. */
+export function citySlug(city: { name: string; country?: string; id?: string }): string {
+  const base = slugify(city.name);
+  // For preset cities we keep the existing `<name>-<cc>` shape (cork-ie etc.).
+  if (city.id && /-[a-z]{2,3}$/.test(city.id)) {
+    return slugify(city.id);
+  }
+  return base;
+}
+
+/** Slug for a development — title + 6-char id suffix to guarantee uniqueness. */
+export function projectSlug(dev: { id: string; title: string }): string {
+  const base = slugify(dev.title);
+  const tail = dev.id.replace(/-/g, "").slice(0, 6);
+  return `${base}-${tail}`;
+}
+
+/** Extracts the trailing 6-char id fragment from a project slug. */
+export function projectSlugIdTail(slug: string): string | null {
+  const m = /-([a-f0-9]{6})$/i.exec(slug);
+  return m ? m[1].toLowerCase() : null;
+}
+
 /** Popular preset cities so users can get started without a network request. */
 export const PRESET_CITIES: City[] = [
   {
