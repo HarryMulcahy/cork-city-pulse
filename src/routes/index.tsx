@@ -718,11 +718,41 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
             sidebarMode === "full"
               ? "w-full translate-x-0"
               : sidebarMode === "side"
-                ? "w-full sm:w-[400px] lg:w-[440px] translate-x-0"
-                : "w-full sm:w-[400px] lg:w-[440px] -translate-x-full"
+                ? "w-full sm:w-[440px] lg:w-[520px] translate-x-0"
+                : "w-full sm:w-[440px] lg:w-[520px] -translate-x-full"
           }`}
           aria-hidden={sidebarMode === "collapsed"}
         >
+          {selected ? (
+            <div
+              key={selected.id}
+              className="absolute inset-0 z-10 flex flex-col bg-card animate-in slide-in-from-right-8 fade-in duration-300"
+            >
+              <DevelopmentDetail
+                dev={selected}
+                cityName={city.name}
+                onBack={() => openDevelopmentRoute(null)}
+                onChange={loadDevs}
+                pendingShape={drawTarget === "edit" && pendingShape ? pendingShape : null}
+                consumePendingShape={() => {
+                  setPendingShape(null);
+                }}
+                onStartDraw={(shape) => {
+                  pendingEditId.current = selected.id;
+                  startDrawing("edit", shape);
+                }}
+                pendingPoint={pickTarget === "edit" ? pendingPoint : null}
+                consumePendingPoint={() => setPendingPoint(null)}
+                onStartMovePin={() => {
+                  pendingEditId.current = selected.id;
+                  setPickTarget("edit");
+                  setPickMode(true);
+                  setSelected(null);
+                  toast("Tap on the map to move the pin");
+                }}
+              />
+            </div>
+          ) : null}
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
