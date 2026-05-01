@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, lazy, Suspense, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
-import { loadSavedCity, saveCity, clearSavedCity, type City } from "@/lib/cities";
+import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
+import { PRESET_CITIES } from "@/lib/cities";
 import { ensureCityDiscussion } from "@/lib/city-discussion.functions";
 import { toast } from "sonner";
 import {
@@ -55,6 +56,7 @@ import {
   Tag,
   Activity,
   Globe2,
+  ArrowLeft,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -98,12 +100,17 @@ const CorkMap = lazy(() => import("@/components/CorkMap").then((m) => ({ default
 
 type IndexSearch = { dev?: string };
 export const Route = createFileRoute("/")({
-  component: HomePage,
+  component: HomePageRoute,
   validateSearch: (search: Record<string, unknown>): IndexSearch => {
     const dev = typeof search.dev === "string" ? search.dev : undefined;
     return dev ? { dev } : {};
   },
 });
+
+function HomePageRoute() {
+  const { dev } = Route.useSearch();
+  return <HomePage devSearchParam={dev} />;
+}
 
 type LatLng = { lat: number; lng: number };
 type ShapeKind = "polygon" | "line";
@@ -214,11 +221,48 @@ const EMPTY_DRAFT: SubmitDraft = {
   previews: [],
 };
 
-function HomePage() {
+interface HomePageProps {
+  /** Legacy ?dev=<id> deep link (from review queue / submissions list). */
+  devSearchParam?: string;
+  /** Slug of the city in the URL, when rendered via /city/$citySlug. */
+  routeCitySlug?: string;
+  /** Slug of the focused project in the URL, when rendered via /city/$citySlug/$projectSlug. */
+  routeProjectSlug?: string;
+}
+
+export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: HomePageProps = {}) {
   const { user } = useAuth();
-  const { dev: devParam } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const [city, setCity] = useState<City | null>(() => loadSavedCity());
+  const navigate = useNavigate();
+  const router = useRouter();
+  const [city, setCityState] = useState<City | null>(() => loadSavedCity());
+  // Wrap setCity so picking a new city also reflects in the URL.
+  const setCity = (next: City | null) => {
+    setCityState(next);
+    if (next) {
+      saveCity(next);
+      const slug = citySlug(next);
+      navigate({ to: "/city/$citySlug/{-$projectSlug}", params: { citySlug: slug, projectSlug: undefined } });
+    }
+  };
+  // Helper: navigate to a development's stacked URL.
+  const openDevelopmentRoute = (d: Development | null) => {
+    if (!city) {
+      setSelected(d);
+      return;
+    }
+    const cSlug = citySlug(city);
+    if (d) {
+      navigate({
+        to: "/city/$citySlug/{-$projectSlug}",
+        params: { citySlug: cSlug, projectSlug: projectSlug(d) },
+      });
+    } else {
+      navigate({
+        to: "/city/$citySlug/{-$projectSlug}",
+        params: { citySlug: cSlug, projectSlug: undefined },
+      });
+    }
+  };
   const [devs, setDevs] = useState<Development[]>([]);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
@@ -319,6 +363,20 @@ function HomePage() {
     loadDevs();
   }, []);
 
+  // If the URL provides a city slug but our state doesn't match, try to resolve it.
+  useEffect(() => {
+    if (!routeCitySlug) return;
+    if (city && citySlug(city) === routeCitySlug) return;
+    const fromPreset = PRESET_CITIES.find((c) => citySlug(c) === routeCitySlug);
+    if (fromPreset) {
+      setCityState(fromPreset);
+      saveCity(fromPreset);
+    }
+    // Else: keep whatever city is loaded (fall back to saved). The url slug will
+    // be normalised next time the user picks a city from the search screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeCitySlug]);
+
   // Ensure a "General Discussion" thread exists for the active city.
   useEffect(() => {
     if (!city) return;
@@ -344,8 +402,8 @@ function HomePage() {
 
   // Deep-link: open detail sheet for ?dev=<id> (used from review queue / submissions list)
   useEffect(() => {
-    if (!devParam) return;
-    const found = devs.find((d) => d.id === devParam);
+    if (!devSearchParam) return;
+    const found = devs.find((d) => d.id === devSearchParam);
     if (!found) return;
     setSelected(found);
     // If pinned dev sits outside the saved city bounds, switch the city view to fit it
@@ -363,10 +421,30 @@ function HomePage() {
       saveCity(c);
       setCity(c);
     }
-    // Clear the search param so subsequent clicks (e.g. close sheet) behave normally
-    navigate({ search: {}, replace: true });
+    // Replace the legacy ?dev= URL with the canonical /city/<slug>/<project> route.
+    const cSlug = citySlug(city ?? { name: found.title, id: `dev-${found.id}` });
+    navigate({
+      to: "/city/$citySlug/{-$projectSlug}",
+      params: { citySlug: cSlug, projectSlug: projectSlug(found) },
+      replace: true,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [devParam, devs]);
+  }, [devSearchParam, devs]);
+
+  // Resolve URL → selected (when user navigates via /city/.../<projectSlug> or hits Back)
+  useEffect(() => {
+    if (!routeProjectSlug) {
+      // No project in URL → clear selection (covers browser Back from a project page).
+      setSelected((cur) => (cur ? null : cur));
+      return;
+    }
+    const tail = projectSlugIdTail(routeProjectSlug);
+    const found = devs.find((d) => {
+      if (tail && d.id.replace(/-/g, "").toLowerCase().startsWith(tail)) return true;
+      return projectSlug(d) === routeProjectSlug;
+    });
+    if (found) setSelected(found);
+  }, [routeProjectSlug, devs]);
 
   // Mark a development as read when it gets opened
   useEffect(() => {
@@ -555,7 +633,7 @@ function HomePage() {
                 shape: d.area?.shape,
               }))}
               selectedId={selected?.id ?? null}
-              onSelect={(id) => setSelected(filteredDevs.find((d) => d.id === id) ?? null)}
+              onSelect={(id) => openDevelopmentRoute(filteredDevs.find((d) => d.id === id) ?? null)}
               pickMode={pickMode}
               pickedPoint={pickedPoint}
               pickedCategory={draft.category}
@@ -640,11 +718,41 @@ function HomePage() {
             sidebarMode === "full"
               ? "w-full translate-x-0"
               : sidebarMode === "side"
-                ? "w-full sm:w-[400px] lg:w-[440px] translate-x-0"
-                : "w-full sm:w-[400px] lg:w-[440px] -translate-x-full"
+                ? "w-full sm:w-[440px] lg:w-[520px] translate-x-0"
+                : "w-full sm:w-[440px] lg:w-[520px] -translate-x-full"
           }`}
           aria-hidden={sidebarMode === "collapsed"}
         >
+          {selected ? (
+            <div
+              key={selected.id}
+              className="absolute inset-0 z-10 flex flex-col bg-card animate-in slide-in-from-right-8 fade-in duration-300"
+            >
+              <DevelopmentDetail
+                dev={selected}
+                cityName={city.name}
+                onBack={() => openDevelopmentRoute(null)}
+                onChange={loadDevs}
+                pendingShape={drawTarget === "edit" && pendingShape ? pendingShape : null}
+                consumePendingShape={() => {
+                  setPendingShape(null);
+                }}
+                onStartDraw={(shape) => {
+                  pendingEditId.current = selected.id;
+                  startDrawing("edit", shape);
+                }}
+                pendingPoint={pickTarget === "edit" ? pendingPoint : null}
+                consumePendingPoint={() => setPendingPoint(null)}
+                onStartMovePin={() => {
+                  pendingEditId.current = selected.id;
+                  setPickTarget("edit");
+                  setPickMode(true);
+                  setSelected(null);
+                  toast("Tap on the map to move the pin");
+                }}
+              />
+            </div>
+          ) : null}
           <div className="px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
@@ -784,7 +892,7 @@ function HomePage() {
             {cityDiscussion && (
               <button
                 onClick={() => {
-                  setSelected(cityDiscussion);
+                  openDevelopmentRoute(cityDiscussion);
                   if (sidebarMode === "full") setSidebarMode("side");
                 }}
                 className={`w-full text-left px-5 py-4 border-b border-border transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
@@ -842,19 +950,19 @@ function HomePage() {
                   const idx = selected ? filteredDevs.findIndex((d) => d.id === selected.id) : -1;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelected(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[Math.min(filteredDevs.length - 1, idx + 1)] ?? filteredDevs[0]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelected(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[Math.max(0, idx - 1)] ?? filteredDevs[0]);
                   } else if (e.key === "Home") {
                     e.preventDefault();
-                    setSelected(filteredDevs[0]);
+                    openDevelopmentRoute(filteredDevs[0]);
                   } else if (e.key === "End") {
                     e.preventDefault();
-                    setSelected(filteredDevs[filteredDevs.length - 1]);
+                    openDevelopmentRoute(filteredDevs[filteredDevs.length - 1]);
                   } else if (e.key === "Escape" && selected) {
                     e.preventDefault();
-                    setSelected(null);
+                    openDevelopmentRoute(null);
                   }
                 }}
               >
@@ -869,7 +977,7 @@ function HomePage() {
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => {
-                          setSelected(d);
+                          openDevelopmentRoute(d);
                           if (sidebarMode === "full") setSidebarMode("side");
                         }}
                         className={`w-full text-left px-5 py-4 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
@@ -951,36 +1059,7 @@ function HomePage() {
         </aside>
       </div>
 
-      {/* Detail sheet */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto z-[1100]">
-          {selected && (
-            <DevelopmentDetail
-              dev={selected}
-              onChange={loadDevs}
-              pendingShape={drawTarget === "edit" && pendingShape ? pendingShape : null}
-              consumePendingShape={() => {
-                setPendingShape(null);
-              }}
-              onStartDraw={(shape) => {
-                pendingEditId.current = selected.id;
-                startDrawing("edit", shape);
-              }}
-              pendingPoint={pickTarget === "edit" ? pendingPoint : null}
-              consumePendingPoint={() => setPendingPoint(null)}
-              onStartMovePin={() => {
-                pendingEditId.current = selected.id;
-                setPickTarget("edit");
-                setPickMode(true);
-                setSelected(null);
-                toast("Tap on the map to move the pin");
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Submit dialog */}
+      {/* Detail panel is rendered inline inside the sidebar above. */}
       <Dialog
         open={submitOpen}
         onOpenChange={(o) => {
@@ -1276,6 +1355,8 @@ function SubmitForm({
 
 interface DetailProps {
   dev: Development;
+  cityName: string;
+  onBack: () => void;
   onChange: () => void;
   pendingShape: ShapeData | null;
   consumePendingShape: () => void;
@@ -1287,6 +1368,8 @@ interface DetailProps {
 
 function DevelopmentDetail({
   dev,
+  cityName,
+  onBack,
   onChange,
   pendingShape,
   consumePendingShape,
@@ -1535,30 +1618,71 @@ function DevelopmentDetail({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <SheetHeader className="px-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
-            {statusLabel(dev.status)} ·{" "}
-            <span className="inline-flex items-center gap-1">
-              <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
-              {categoryLabel(dev.category)}
-            </span>
-          </Badge>
-          {dev.approval_status === "pending" && (
-            <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
-          )}
-          {dev.approval_status === "rejected" && (
-            <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+    <div className="flex flex-col h-full bg-background">
+      {/* Sticky Back bar */}
+      <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-3 bg-card/95 backdrop-blur border-b border-border">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 -ml-1 px-2 py-1.5 rounded-md text-sm font-semibold text-foreground hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition"
+          aria-label={`Back to ${cityName}`}
+        >
+          <ArrowLeft className="size-4" />
+          <span className="truncate max-w-[200px]">Back to {cityName}</span>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Hero image — full width of the panel */}
+        {dev.images.length > 0 && (
+          <div className="w-full bg-secondary border-b border-border">
+            <img
+              src={dev.images[0]}
+              alt={dev.title}
+              className="block w-full max-h-[420px] object-cover"
+            />
+            {dev.images.length > 1 && (
+              <div className="px-6 py-3 grid grid-cols-4 gap-2 max-w-3xl mx-auto">
+                {dev.images.slice(1).map((src, i) => (
+                  <a
+                    key={src}
+                    href={src}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="aspect-square rounded-md overflow-hidden border border-border hover:opacity-80 transition"
+                  >
+                    <img src={src} alt={`${dev.title} photo ${i + 2}`} className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Centered, max-width content */}
+        <div className="px-6 py-6 max-w-3xl mx-auto">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${STATUS_COLORS[dev.status]} w-fit text-[10px] uppercase tracking-wider font-medium`}>
+              {statusLabel(dev.status)} ·{" "}
+              <span className="inline-flex items-center gap-1">
+                <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[dev.category] }} />
+                {categoryLabel(dev.category)}
+              </span>
+            </Badge>
+            {dev.approval_status === "pending" && (
+              <Badge className="bg-amber-500/15 text-amber-600 text-[10px] uppercase tracking-wider"><Clock className="size-3 mr-1" />Pending</Badge>
+            )}
+            {dev.approval_status === "rejected" && (
+              <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
+            )}
+          </div>
+          <h1 className="text-3xl leading-tight font-bold tracking-tight">{dev.title}</h1>
+          {dev.address && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <MapPin className="size-3.5" /> {dev.address}
+            </p>
           )}
         </div>
-        <SheetTitle className="text-2xl leading-tight font-bold">{dev.title}</SheetTitle>
-        {dev.address && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            <MapPin className="size-3.5" /> {dev.address}
-          </p>
-        )}
-      </SheetHeader>
 
       {dev.approval_status === "pending" && isApprover && (
         <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
@@ -1590,32 +1714,6 @@ function DevelopmentDetail({
         </div>
       )}
 
-      {dev.images.length > 0 && (
-        <div className="mt-4 -mx-6">
-          <div className="aspect-[4/3] w-full overflow-hidden bg-secondary border-y border-border">
-            <img
-              src={dev.images[0]}
-              alt={dev.title}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          {dev.images.length > 1 && (
-            <div className="px-6 mt-2 grid grid-cols-4 gap-2">
-              {dev.images.slice(1).map((src, i) => (
-                <a
-                  key={src}
-                  href={src}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="aspect-square rounded-md overflow-hidden border border-border hover:opacity-80 transition"
-                >
-                  <img src={src} alt={`${dev.title} photo ${i + 2}`} className="h-full w-full object-cover" />
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Quick-info grid (2x2, scannable in sunlight) */}
       {dev.source !== "general" && (
@@ -1870,6 +1968,8 @@ function DevelopmentDetail({
             to join the discussion.
           </p>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );

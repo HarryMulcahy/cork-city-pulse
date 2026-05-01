@@ -13,6 +13,7 @@ import { Route as SubmissionsRouteImport } from './routes/submissions'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CityCitySlugChar123ProjectSlugChar125RouteImport } from './routes/city.$citySlug.{-$projectSlug}'
 import { Route as ApiPublicHooksImportOsmRouteImport } from './routes/api/public/hooks/import-osm'
 
 const SubmissionsRoute = SubmissionsRouteImport.update({
@@ -35,6 +36,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CityCitySlugChar123ProjectSlugChar125Route =
+  CityCitySlugChar123ProjectSlugChar125RouteImport.update({
+    id: '/city/$citySlug/{-$projectSlug}',
+    path: '/city/$citySlug/{-$projectSlug}',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksImportOsmRoute = ApiPublicHooksImportOsmRouteImport.update({
   id: '/api/public/hooks/import-osm',
   path: '/api/public/hooks/import-osm',
@@ -46,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +61,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRoutesById {
@@ -61,6 +70,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
 export interface FileRouteTypes {
@@ -70,15 +80,23 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/submissions'
+    | '/city/$citySlug/{-$projectSlug}'
     | '/api/public/hooks/import-osm'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/auth' | '/submissions' | '/api/public/hooks/import-osm'
+  to:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/submissions'
+    | '/city/$citySlug/{-$projectSlug}'
+    | '/api/public/hooks/import-osm'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/auth'
     | '/submissions'
+    | '/city/$citySlug/{-$projectSlug}'
     | '/api/public/hooks/import-osm'
   fileRoutesById: FileRoutesById
 }
@@ -87,6 +105,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   SubmissionsRoute: typeof SubmissionsRoute
+  CityCitySlugChar123ProjectSlugChar125Route: typeof CityCitySlugChar123ProjectSlugChar125Route
   ApiPublicHooksImportOsmRoute: typeof ApiPublicHooksImportOsmRoute
 }
 
@@ -120,6 +139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/city/$citySlug/{-$projectSlug}': {
+      id: '/city/$citySlug/{-$projectSlug}'
+      path: '/city/$citySlug/{-$projectSlug}'
+      fullPath: '/city/$citySlug/{-$projectSlug}'
+      preLoaderRoute: typeof CityCitySlugChar123ProjectSlugChar125RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/import-osm': {
       id: '/api/public/hooks/import-osm'
       path: '/api/public/hooks/import-osm'
@@ -135,6 +161,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   SubmissionsRoute: SubmissionsRoute,
+  CityCitySlugChar123ProjectSlugChar125Route:
+    CityCitySlugChar123ProjectSlugChar125Route,
   ApiPublicHooksImportOsmRoute: ApiPublicHooksImportOsmRoute,
 }
 export const routeTree = rootRouteImport
