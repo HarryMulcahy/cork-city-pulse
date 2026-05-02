@@ -252,6 +252,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     }
     const cSlug = citySlug(city);
     if (d) {
+      // Ensure the sidebar is visible so the detail panel can be seen
+      setSidebarMode((m) => (m === "collapsed" ? "side" : m));
       navigate({
         to: "/city/$citySlug/{-$projectSlug}",
         params: { citySlug: cSlug, projectSlug: projectSlug(d) },
