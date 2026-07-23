@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Loader2, Clock, MapPin, ClipboardList } from "lucide-react";
 import { CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/submissions")({
   component: SubmissionsPage,
@@ -35,6 +37,8 @@ function SubmissionsPage() {
   const [rows, setRows] = useState<SubRow[]>([]);
   const [fetching, setFetching] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const load = async () => {
     if (!user) return;
@@ -72,16 +76,23 @@ function SubmissionsPage() {
     load();
   };
 
-  const reject = async (id: string) => {
-    const reason = prompt("Reason for rejection (optional):") ?? "";
-    setActing(id);
+  const reject = async () => {
+    if (!rejectId) return;
+    setActing(rejectId);
     const { error } = await supabase
       .from("developments")
-      .update({ approval_status: "rejected", approved_by: user!.id, approved_at: new Date().toISOString(), rejection_reason: reason || null })
-      .eq("id", id);
+      .update({
+        approval_status: "rejected",
+        approved_by: user!.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: rejectReason.trim() || null,
+      })
+      .eq("id", rejectId);
     setActing(null);
     if (error) return toast.error(error.message);
     toast.success("Rejected");
+    setRejectId(null);
+    setRejectReason("");
     load();
   };
 
@@ -173,7 +184,10 @@ function SubmissionsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{r.description}</p>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono flex-wrap">
-                        <span className="px-1.5 py-0.5 rounded" style={{ backgroundColor: `${color}1a`, color }}>{r.category}</span>
+                        <span className="px-1.5 py-0.5 rounded text-foreground/80 inline-flex items-center gap-1" style={{ backgroundColor: `${color}1a` }}>
+                          <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+                          {r.category}
+                        </span>
                         <span>·</span>
                         <span>by {r.display_name ?? "anon"}</span>
                         <span>·</span>
@@ -190,7 +204,7 @@ function SubmissionsPage() {
                             {acting === r.id ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
                             Approve
                           </Button>
-                          <Button size="sm" variant="outline" disabled={acting === r.id} onClick={(e) => { e.preventDefault(); reject(r.id); }} className="gap-1.5">
+                          <Button size="sm" variant="outline" disabled={acting === r.id} onClick={(e) => { e.preventDefault(); setRejectId(r.id); }} className="gap-1.5">
                             <XCircle className="size-3.5" />
                             Reject
                           </Button>
@@ -203,6 +217,49 @@ function SubmissionsPage() {
             })}
           </ul>
         )}
+
+        <Dialog
+          open={rejectId !== null}
+          onOpenChange={(o) => {
+            if (!o) {
+              setRejectId(null);
+              setRejectReason("");
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject submission</DialogTitle>
+              <DialogDescription>
+                Optionally tell the submitter why — they'll see this on their rejected submission.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="e.g. Duplicate of an existing pin, or not a real development."
+              aria-label="Reason for rejection"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRejectId(null);
+                  setRejectReason("");
+                }}
+                disabled={acting !== null}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={reject} disabled={acting !== null} className="gap-1.5">
+                {acting !== null && <Loader2 className="size-4 animate-spin" />}
+                Reject submission
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

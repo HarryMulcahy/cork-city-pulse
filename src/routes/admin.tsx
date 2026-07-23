@@ -10,6 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Shield, Trash2, Loader2, UserPlus, Download } from "lucide-react";
 
@@ -41,6 +51,7 @@ function AdminPage() {
   const [newRole, setNewRole] = useState<AppRole>("city_mod");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<{ id: string; label: string } | null>(null);
 
   const canManage = isAdmin || isCityMod;
 
@@ -118,11 +129,12 @@ function AdminPage() {
     load();
   };
 
-  const revoke = async (id: string, label: string) => {
-    if (!confirm(`Revoke ${label}?`)) return;
-    const { error } = await supabase.from("user_roles").delete().eq("id", id);
+  const doRevoke = async () => {
+    if (!revokeTarget) return;
+    const { error } = await supabase.from("user_roles").delete().eq("id", revokeTarget.id);
     if (error) return toast.error(error.message);
     toast.success("Role revoked");
+    setRevokeTarget(null);
     load();
   };
 
@@ -267,9 +279,9 @@ function AdminPage() {
                       <Badge className={`${roleColor[r.role]} text-[10px] uppercase tracking-wider`}>{r.role}</Badge>
                       {canRevoke && (
                         <button
-                          onClick={() => revoke(r.id, `${r.role} from ${r.display_name ?? "user"}`)}
+                          onClick={() => setRevokeTarget({ id: r.id, label: `${r.role} from ${r.display_name ?? "user"}` })}
                           className="text-destructive hover:opacity-70"
-                          aria-label="Revoke"
+                          aria-label={`Revoke ${r.role} from ${r.display_name ?? "user"}`}
                         >
                           <Trash2 className="size-4" />
                         </button>
@@ -281,6 +293,26 @@ function AdminPage() {
             </ul>
           )}
         </section>
+
+        <AlertDialog open={revokeTarget !== null} onOpenChange={(o) => { if (!o) setRevokeTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revoke role?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes {revokeTarget?.label ?? "this role"}. They'll lose the associated permissions immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={doRevoke}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Revoke
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
