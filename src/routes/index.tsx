@@ -424,7 +424,9 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       setCity(c);
     }
     // Replace the legacy ?dev= URL with the canonical /city/<slug>/<project> route.
-    const cSlug = citySlug(city ?? { name: found.title, id: `dev-${found.id}` });
+    // Pass only the name (not the synthetic `dev-<id>`) so citySlug slugifies the title
+    // rather than mistaking a uuid tail for a preset country-code suffix.
+    const cSlug = citySlug(city ?? { name: found.title });
     navigate({
       to: "/city/$citySlug/{-$projectSlug}",
       params: { citySlug: cSlug, projectSlug: projectSlug(found) },
@@ -441,10 +443,13 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       return;
     }
     const tail = projectSlugIdTail(routeProjectSlug);
-    const found = devs.find((d) => {
-      if (tail && d.id.replace(/-/g, "").toLowerCase().startsWith(tail)) return true;
-      return projectSlug(d) === routeProjectSlug;
-    });
+    // Prefer an exact canonical-slug match (title + id tail); only fall back to the
+    // 6-char id-tail prefix if the title portion has since changed. This prevents two
+    // developments that share the first 6 hex chars of their UUID from resolving to the
+    // wrong project.
+    const found =
+      devs.find((d) => projectSlug(d) === routeProjectSlug) ??
+      (tail ? devs.find((d) => d.id.replace(/-/g, "").toLowerCase().startsWith(tail)) : undefined);
     if (found) setSelected(found);
   }, [routeProjectSlug, devs]);
 

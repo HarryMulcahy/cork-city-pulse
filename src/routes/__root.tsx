@@ -40,14 +40,18 @@ export const Route = createRootRoute({
       { property: "og:title", content: "SiteWatch — Citizen Planning Map" },
       {
         property: "og:description",
-        content: "An open community map for city developments.",
+        content:
+          "Track, submit and discuss construction and urban planning developments in any city on an open community map.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "SiteWatch — Citizen Planning Map" },
-      { name: "description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
-      { property: "og:description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
-      { name: "twitter:description", content: "A global city map for submitting, discussing, and tracking urban development projects." },
+      {
+        name: "twitter:description",
+        content:
+          "Track, submit and discuss construction and urban planning developments in any city on an open community map.",
+      },
+      // TODO: replace with a hosted SiteWatch-branded social card (this is a leftover Lovable preview image).
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ef8f994a-9852-4376-8a7e-4fbc22aa3c7c/id-preview-367982c5--dbca57b0-1907-4373-b6d4-db2e01f2aa8d.lovable.app-1777034906817.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ef8f994a-9852-4376-8a7e-4fbc22aa3c7c/id-preview-367982c5--dbca57b0-1907-4373-b6d4-db2e01f2aa8d.lovable.app-1777034906817.png" },
     ],
