@@ -68,6 +68,8 @@ import {
   Activity,
   Globe2,
   ArrowLeft,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -303,6 +305,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   const [categoryFilter, setCategoryFilter] = useState<Set<Category>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"activity" | "newest" | "discussed" | "az">("activity");
   const toggleInSet = <T,>(set: Set<T>, value: T): Set<T> => {
     const next = new Set(set);
     if (next.has(value)) next.delete(value);
@@ -506,17 +510,39 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   );
 
   const filteredDevs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const base = cityDevs.filter((d) => {
       if (categoryFilter.size > 0 && !categoryFilter.has(d.category)) return false;
       if (statusFilter.size > 0 && !statusFilter.has(d.status)) return false;
+      if (q) {
+        const haystack = `${d.title} ${d.description} ${d.address ?? ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
+    const sorted = [...base].sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0;
+        case "discussed":
+          return b.comments_count - a.comments_count;
+        case "az":
+          return a.title.localeCompare(b.title);
+        case "activity":
+        default:
+          return a.last_activity_at < b.last_activity_at
+            ? 1
+            : a.last_activity_at > b.last_activity_at
+              ? -1
+              : 0;
+      }
+    });
     // Always include the currently selected dev (e.g. a pending one opened from the review queue)
-    if (selected && selected.source !== "general" && !base.some((d) => d.id === selected.id)) {
-      return [selected, ...base];
+    if (selected && selected.source !== "general" && !sorted.some((d) => d.id === selected.id)) {
+      return [selected, ...sorted];
     }
-    return base;
-  }, [cityDevs, categoryFilter, statusFilter, selected]);
+    return sorted;
+  }, [cityDevs, categoryFilter, statusFilter, selected, searchQuery, sortBy]);
 
   const filtersActive = categoryFilter.size > 0 || statusFilter.size > 0;
 
@@ -825,6 +851,42 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
               </p>
             )}
 
+            {/* Search + sort */}
+            <div className="mt-3 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search developments…"
+                  className="pl-8 pr-8 h-9"
+                  aria-label="Search developments in this city"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="h-9 w-[140px] gap-1 text-xs" aria-label="Sort developments">
+                  <ArrowUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[600]">
+                  <SelectItem value="activity">Recent activity</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="discussed">Most discussed</SelectItem>
+                  <SelectItem value="az">A–Z</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Filters (collapsible) */}
             <div className="mt-3">
               <div className="w-full flex items-center justify-between py-1">
@@ -970,7 +1032,9 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                 {cityDevs.length === 0
                   ? `No developments here yet. Be the first to drop a pin in ${city.name}.`
-                  : "No developments match your filters."}
+                  : searchQuery.trim()
+                    ? `No results for "${searchQuery.trim()}". Try a different search or clear filters.`
+                    : "No developments match your filters."}
               </div>
             ) : (
               <ul
