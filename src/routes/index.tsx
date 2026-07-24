@@ -316,10 +316,29 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   };
 
   const loadDevs = async () => {
-    const { data, error } = await supabase
-      .from("developments")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // No city selected yet (city-search screen) — nothing to render, so skip the fetch.
+    if (!city) {
+      setDevs([]);
+      setInitialLoading(false);
+      return;
+    }
+    const b = city.bounds;
+    // Scope the query to the current city's bounding box server-side instead of pulling
+    // every development on earth and filtering in the browser. A deep-linked (?dev=)
+    // project is OR-ed in by id so shared links to an out-of-city project still resolve.
+    const deepLink =
+      devSearchParam && /^[0-9a-f-]{36}$/i.test(devSearchParam) ? devSearchParam : null;
+    const base = supabase.from("developments").select("*").order("created_at", { ascending: false });
+    const scoped = deepLink
+      ? base.or(
+          `id.eq.${deepLink},and(latitude.gte.${b[0][0]},latitude.lte.${b[1][0]},longitude.gte.${b[0][1]},longitude.lte.${b[1][1]})`,
+        )
+      : base
+          .gte("latitude", b[0][0])
+          .lte("latitude", b[1][0])
+          .gte("longitude", b[0][1])
+          .lte("longitude", b[1][1]);
+    const { data, error } = await scoped;
     if (error) {
       toast.error("Failed to load developments");
       setInitialLoading(false);
