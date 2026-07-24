@@ -228,3 +228,41 @@ export async function searchCities(query: string, signal?: AbortSignal): Promise
       };
     });
 }
+
+export interface GeocodeResult {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Geocode a free-text address / place with OpenStreetMap Nominatim (no key; be polite).
+ * Unlike searchCities this is not restricted to city-level results, so it can locate a
+ * specific street or site for placing a development pin without using the map.
+ */
+export async function geocodeAddress(query: string, signal?: AbortSignal): Promise<GeocodeResult[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", q);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "6");
+
+  const res = await fetch(url.toString(), { signal, headers: { Accept: "application/json" } });
+  if (!res.ok) return [];
+  const data = (await res.json()) as Array<{
+    place_id: number;
+    display_name: string;
+    lat: string;
+    lon: string;
+  }>;
+  return data
+    .map((r) => ({
+      id: `geo-${r.place_id}`,
+      label: r.display_name,
+      lat: parseFloat(r.lat),
+      lng: parseFloat(r.lon),
+    }))
+    .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+}
