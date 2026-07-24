@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
+import { AddressSearch } from "@/components/AddressSearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { PRESET_CITIES } from "@/lib/cities";
 import { ensureCityDiscussion } from "@/lib/city-discussion.functions";
@@ -567,6 +568,14 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     setPickMode(false);
   };
 
+  // Keyboard-accessible alternative to tapping the map: place via a geocoded address.
+  const handleAddressPick = (lat: number, lng: number, label: string) => {
+    if (pickTarget === "submit") {
+      setDraft((d) => (d.address.trim() ? d : { ...d, address: label.slice(0, 200) }));
+    }
+    handlePick(lat, lng);
+  };
+
   const startPicking = () => {
     if (!user) {
       toast.info("Sign in to submit a development");
@@ -695,16 +704,21 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
           </Suspense>
 
           {pickMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-4 py-2 rounded-md shadow-lg flex items-center gap-3 text-sm">
-              <MapPin className="size-4" />
-              <span>Click on the map to place your development</span>
-              <button
-                onClick={() => setPickMode(false)}
-                className="ml-2 opacity-70 hover:opacity-100"
-                aria-label="Cancel"
-              >
-                <X className="size-4" />
-              </button>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[700] w-[min(92vw,26rem)] bg-foreground text-background rounded-md shadow-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2 text-sm">
+                <MapPin className="size-4 shrink-0" />
+                <span className="flex-1">Tap the map, or search an address</span>
+                <button
+                  onClick={() => setPickMode(false)}
+                  className="opacity-70 hover:opacity-100"
+                  aria-label="Cancel"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="bg-card p-2 border-t border-background/15">
+                <AddressSearch autoFocus onPick={handleAddressPick} />
+              </div>
             </div>
           )}
 
