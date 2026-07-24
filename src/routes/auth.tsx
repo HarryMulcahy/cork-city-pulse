@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import logoUrl from "@/assets/sitewatch-logo.png";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — Cork Builds" },
-      { name: "description", content: "Sign in or create an account to submit Cork City developments." },
+      { title: "Sign in — SiteWatch" },
+      {
+        name: "description",
+        content: "Sign in or create an account to submit and discuss developments in your city.",
+      },
     ],
   }),
   component: AuthPage,
@@ -54,9 +58,18 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <div className="px-5 py-4 border-b border-border">
-        <Link to="/" className="text-xl font-bold tracking-tight">
-          Cork Builds
+      <div className="px-5 py-2.5 bg-[#1a2b3c] border-b-2 border-[#ffcc00]">
+        <Link to="/" className="inline-flex items-center gap-2 text-white" aria-label="SiteWatch home">
+          <img
+            src={logoUrl}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 rounded-sm bg-white/95 p-0.5"
+          />
+          <span className="text-xl font-bold tracking-tight">
+            Site<span className="text-[#ffcc00]">Watch</span>
+          </span>
         </Link>
       </div>
       <div className="flex-1 flex items-center justify-center px-4 py-12">
@@ -66,12 +79,12 @@ function AuthPage() {
               {mode === "signin" ? "Welcome back" : "Join the conversation"}
             </p>
             <h1 className="text-3xl font-bold">
-              {mode === "signin" ? "Sign in to Cork Builds" : "Create your account"}
+              {mode === "signin" ? "Sign in to SiteWatch" : "Create your account"}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
               {mode === "signin"
-                ? "Continue tracking and discussing developments across the city."
-                : "Submit pins and join the discussion on Cork City planning."}
+                ? "Continue tracking and discussing developments across your city."
+                : "Submit pins and join the discussion on developments in your city."}
             </p>
           </div>
 
