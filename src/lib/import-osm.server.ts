@@ -67,7 +67,7 @@ function buildOverpassQuery(bbox: [number, number, number, number]): string {
       way["construction"](${s},${w},${n},${e});
       relation["construction"](${s},${w},${n},${e});
     );
-    out tags center geom 200;
+    out tags center geom 400;
   `;
 }
 
@@ -103,13 +103,14 @@ function titleFor(tags: Record<string, string>, fallback: string): string {
   return `${kind} — ${fallback}`;
 }
 
-function descriptionFor(tags: Record<string, string>): string {
+function descriptionFor(tags: Record<string, string>, scaleNote?: string): string {
   const bits: string[] = [];
   if (tags.description) bits.push(tags.description);
   if (tags.operator) bits.push(`Operator: ${tags.operator}`);
   if (tags.start_date) bits.push(`Start: ${tags.start_date}`);
   if (tags.opening_date) bits.push(`Opening: ${tags.opening_date}`);
   if (tags["building:levels"]) bits.push(`${tags["building:levels"]} levels`);
+  if (scaleNote) bits.push(scaleNote);
   bits.push("Imported automatically from OpenStreetMap. Pending review by a moderator.");
   return bits.join("\n\n");
 }
@@ -119,6 +120,7 @@ export interface ImportResult {
   fetched: number;
   inserted: number;
   skipped: number;
+  skippedSmall: number;
   failed: number;
 }
 
@@ -157,6 +159,89 @@ async function fetchOverpassJson(query: string): Promise<OverpassResponse> {
   throw new Error(`Overpass API failed: ${errors.join("; ")}`);
 }
 
+/**
+ * Significance filter — SiteWatch focuses on large-scale / notable projects, not every
+ * house-scale build that OSM tags as "construction". Tune these thresholds to taste:
+ * raise them to be stricter (fewer, bigger projects), lower them to include more.
+ */
+const MIN_POLYGON_AREA_M2 = 2500; // ~0.25 ha: excludes individual houses & small buildings
+const MIN_BUILDING_LEVELS = 4; // keep mid-rise+ towers even on a small footprint
+const MIN_LINE_LENGTH_M = 800; // keep major road/rail/cycle routes, drop short segments
+
+function ringIsClosed(geometry?: Array<{ lat: number; lon: number }>): boolean {
+  if (!geometry || geometry.length < 4) return false;
+  const first = geometry[0];
+  const last = geometry[geometry.length - 1];
+  return first.lat === last.lat && first.lon === last.lon;
+}
+
+/** Approximate area (m²) of a lat/lon ring via an equirectangular projection + shoelace. */
+function polygonAreaM2(geometry?: Array<{ lat: number; lon: number }>): number {
+  if (!geometry || geometry.length < 3) return 0;
+  const mPerDegLat = 111320;
+  const mPerDegLon = 111320 * Math.cos((geometry[0].lat * Math.PI) / 180);
+  let sum = 0;
+  for (let i = 0; i < geometry.length; i++) {
+    const a = geometry[i];
+    const b = geometry[(i + 1) % geometry.length];
+    const ax = a.lon * mPerDegLon;
+    const ay = a.lat * mPerDegLat;
+    const bx = b.lon * mPerDegLon;
+    const by = b.lat * mPerDegLat;
+    sum += ax * by - bx * ay;
+  }
+  return Math.abs(sum) / 2;
+}
+
+/** Approximate length (m) of a lat/lon polyline. */
+function lineLengthM(geometry?: Array<{ lat: number; lon: number }>): number {
+  if (!geometry || geometry.length < 2) return 0;
+  const mPerDegLat = 111320;
+  let total = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const a = geometry[i - 1];
+    const b = geometry[i];
+    const mPerDegLon = 111320 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+    const dx = (b.lon - a.lon) * mPerDegLon;
+    const dy = (b.lat - a.lat) * mPerDegLat;
+    total += Math.sqrt(dx * dx + dy * dy);
+  }
+  return total;
+}
+
+function parseLevels(tags: Record<string, string>): number {
+  const raw = tags["building:levels"] ?? tags["building:levels:aboveground"] ?? "";
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Decide whether an OSM element is a large-scale / notable development worth importing.
+ * Returns whether to keep it and a short scale note surfaced in the description for reviewers.
+ */
+function assessSignificance(
+  el: OverpassElement,
+  tags: Record<string, string>,
+): { keep: boolean; note?: string } {
+  // Multipolygon relations are aggregated development sites — inherently notable.
+  if (el.type === "relation") return { keep: true, note: "Scale: multi-part development site" };
+
+  const levels = parseLevels(tags);
+  if (levels >= MIN_BUILDING_LEVELS) return { keep: true, note: `Scale: ${levels} storeys` };
+
+  const geom = el.geometry;
+  if (ringIsClosed(geom)) {
+    const area = Math.round(polygonAreaM2(geom));
+    if (area >= MIN_POLYGON_AREA_M2) return { keep: true, note: `Scale: ~${area.toLocaleString()} m² footprint` };
+    return { keep: false };
+  }
+
+  // Open way = a line (road / rail / cycleway under construction).
+  const len = Math.round(lineLengthM(geom));
+  if (len >= MIN_LINE_LENGTH_M) return { keep: true, note: `Scale: ~${len.toLocaleString()} m route` };
+  return { keep: false };
+}
+
 export async function runOsmImport(cityKey: string, importerId: string): Promise<ImportResult> {
   const preset = CITY_PRESETS[cityKey];
   if (!preset) throw new Error(`Unknown city preset: ${cityKey}`);
@@ -166,11 +251,20 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
 
   let inserted = 0;
   let skipped = 0;
+  let skippedSmall = 0;
   let failed = 0;
 
   for (const el of json.elements) {
     if (el.type === "node") continue;
     const tags = el.tags ?? {};
+
+    // Only import large-scale / notable projects, not every tagged construction site.
+    const significance = assessSignificance(el, tags);
+    if (!significance.keep) {
+      skippedSmall++;
+      continue;
+    }
+
     const center = el.center ?? (el.lat && el.lon ? { lat: el.lat, lon: el.lon } : null) ?? centerFromGeometry(el.geometry);
     if (!center) {
       skipped++;
@@ -182,7 +276,7 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
     const { error } = await supabaseAdmin.from("developments").insert({
       user_id: importerId,
       title: titleFor(tags, preset.name),
-      description: descriptionFor(tags),
+      description: descriptionFor(tags, significance.note),
       category: classifyCategory(tags) as
         | "residential"
         | "commercial"
@@ -217,6 +311,7 @@ export async function runOsmImport(cityKey: string, importerId: string): Promise
     fetched: json.elements.length,
     inserted,
     skipped,
+    skippedSmall,
     failed,
   };
 }

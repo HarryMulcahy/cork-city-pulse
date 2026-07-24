@@ -51,7 +51,7 @@ function AdminPage() {
     try {
       const result = await importOsmCityFn({ data: { city } });
       toast.success(
-        `Imported ${result.inserted} new sites · ${result.skipped} already existed${
+        `Imported ${result.inserted} new sites · ${result.skippedSmall} skipped as too small · ${result.skipped} already existed${
           result.failed ? ` · ${result.failed} failed` : ""
         }. Review them in the queue.`,
       );
