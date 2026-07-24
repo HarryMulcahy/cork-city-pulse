@@ -1484,6 +1484,10 @@ function DevelopmentDetail({
   const { user, isApprover } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState("");
+  const [savingComment, setSavingComment] = useState(false);
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -1683,6 +1687,36 @@ function DevelopmentDetail({
     load();
   };
 
+  const startEditComment = (c: Comment) => {
+    setEditingCommentId(c.id);
+    setEditingCommentBody(c.body);
+  };
+
+  const saveCommentEdit = async () => {
+    if (!editingCommentId) return;
+    const next = editingCommentBody.trim();
+    if (next.length < 2) return;
+    setSavingComment(true);
+    const { error } = await supabase
+      .from("comments")
+      .update({ body: next.slice(0, 1000) })
+      .eq("id", editingCommentId);
+    setSavingComment(false);
+    if (error) return toast.error(error.message);
+    setEditingCommentId(null);
+    setEditingCommentBody("");
+    load();
+  };
+
+  const doDeleteComment = async () => {
+    if (!deleteCommentId) return;
+    const { error } = await supabase.from("comments").delete().eq("id", deleteCommentId);
+    if (error) return toast.error(error.message);
+    setDeleteCommentId(null);
+    toast.success("Comment deleted");
+    load();
+  };
+
   const remove = async () => {
     const { error } = await supabase.from("developments").delete().eq("id", dev.id);
     if (error) return toast.error(error.message);
@@ -1779,6 +1813,26 @@ function DevelopmentDetail({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteCommentId !== null} onOpenChange={(o) => { if (!o) setDeleteCommentId(null); }}>
+        <AlertDialogContent className="z-[1300]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this comment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the comment and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doDeleteComment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sticky Back bar */}
       <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-3 bg-card/95 backdrop-blur border-b border-border">
@@ -2092,17 +2146,77 @@ function DevelopmentDetail({
           <MessageSquare className="size-4" /> Discussion ({comments.length})
         </h2>
         <ul className="space-y-3 mb-4">
-          {comments.map((c) => (
-            <li key={c.id} className="bg-secondary/60 rounded-md p-3">
-              <div className="flex items-baseline justify-between gap-2 mb-1">
-                <span className="text-xs font-semibold">{c.profiles?.display_name ?? "anon"}</span>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {new Date(c.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
-            </li>
-          ))}
+          {comments.map((c) => {
+            const isCommentOwner = user?.id === c.user_id;
+            const isEditing = editingCommentId === c.id;
+            return (
+              <li key={c.id} className="bg-secondary/60 rounded-md p-3">
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                  <span className="text-xs font-semibold">{c.profiles?.display_name ?? "anon"}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {new Date(c.created_at).toLocaleDateString()}
+                    </span>
+                    {(isCommentOwner || isApprover) && !isEditing && (
+                      <div className="flex items-center gap-1">
+                        {isCommentOwner && (
+                          <button
+                            type="button"
+                            onClick={() => startEditComment(c)}
+                            className="text-muted-foreground hover:text-foreground transition"
+                            aria-label="Edit comment"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteCommentId(c.id)}
+                          className="text-muted-foreground hover:text-destructive transition"
+                          aria-label={isCommentOwner ? "Delete comment" : "Remove comment (moderator)"}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editingCommentBody}
+                      onChange={(e) => setEditingCommentBody(e.target.value)}
+                      maxLength={1000}
+                      rows={3}
+                      aria-label="Edit comment"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={saveCommentEdit}
+                        disabled={savingComment || editingCommentBody.trim().length < 2}
+                      >
+                        {savingComment ? "Saving…" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCommentId(null);
+                          setEditingCommentBody("");
+                        }}
+                        disabled={savingComment}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
+                )}
+              </li>
+            );
+          })}
           {comments.length === 0 && (
             <li className="text-xs text-muted-foreground italic">No comments yet — start the conversation.</li>
           )}
