@@ -20,16 +20,16 @@ export type Category = (typeof CATEGORIES)[number]["value"];
 export type Status = (typeof STATUSES)[number]["value"];
 
 /**
- * Distinct hex color per category. Used for both pin tint and area outline.
- * Picked for high contrast against the warm-stone basemap.
+ * Distinct hex color per category. Used for pin fill, area outline, and swatches.
+ * Chosen to stay >= 4.5:1 (WCAG AA) as white-on-fill so they work as text/pill colors.
  */
 export const CATEGORY_COLORS: Record<Category, string> = {
-  residential: "#2563eb",      // blue
-  commercial: "#9333ea",       // purple
-  infrastructure: "#ea580c",   // orange
-  public_space: "#16a34a",     // green
-  mixed_use: "#0891b2",        // teal
-  other: "#64748b",            // slate
+  residential: "#2563eb",      // blue-600
+  commercial: "#9333ea",       // purple-600
+  infrastructure: "#c2410c",   // orange-700 (darkened for AA contrast)
+  public_space: "#15803d",     // green-700 (darkened for AA contrast)
+  mixed_use: "#0e7490",        // cyan-700 (darkened for AA contrast)
+  other: "#64748b",            // slate-500
 };
 
 /**

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,16 @@ import {
 } from "@/components/ui/select";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -266,6 +277,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     }
   };
   const [devs, setDevs] = useState<Development[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [selected, setSelected] = useState<Development | null>(null);
   const [pickMode, setPickMode] = useState(false);
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
@@ -305,6 +317,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Failed to load developments");
+      setInitialLoading(false);
       return;
     }
     type RawRow = Omit<Development, "profiles" | "area" | "images" | "last_activity_at" | "comments_count" | "approval_status" | "rejection_reason" | "source" | "source_ref"> & {
@@ -359,6 +372,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     });
     mapped.sort((a, b) => (a.last_activity_at < b.last_activity_at ? 1 : -1));
     setDevs(mapped);
+    setInitialLoading(false);
   };
 
   useEffect(() => {
@@ -671,12 +685,12 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
           {drawMode && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] bg-foreground text-background px-3 py-2 rounded-md shadow-lg flex items-center gap-2 text-sm flex-wrap justify-center max-w-[95vw]">
               {drawShape === "line" ? <Spline className="size-4" /> : <Hexagon className="size-4" />}
-              <span className="hidden sm:inline">
+              <span className="hidden sm:inline" role="status" aria-live="polite">
                 {drawPoints.length < (drawShape === "line" ? 2 : 3)
                   ? `Add ${(drawShape === "line" ? 2 : 3) - drawPoints.length} more point${(drawShape === "line" ? 2 : 3) - drawPoints.length === 1 ? "" : "s"}`
                   : `${drawPoints.length} points · double-click to finish`}
               </span>
-              <span className="sm:hidden font-mono text-xs">{drawPoints.length} pts</span>
+              <span className="sm:hidden font-mono text-xs" role="status" aria-live="polite">{drawPoints.length} pts</span>
               <button
                 onClick={() => setDrawPoints((p) => p.slice(0, -1))}
                 disabled={drawPoints.length === 0}
@@ -813,12 +827,12 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
 
             {/* Filters (collapsible) */}
             <div className="mt-3">
-              <button
-                onClick={() => setFiltersOpen((v) => !v)}
-                className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition py-1"
-                aria-expanded={filtersOpen}
-              >
-                <span className="flex items-center gap-1.5">
+              <div className="w-full flex items-center justify-between py-1">
+                <button
+                  onClick={() => setFiltersOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition"
+                  aria-expanded={filtersOpen}
+                >
                   {filtersOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   Filters
                   {filtersActive && (
@@ -826,22 +840,21 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                       {categoryFilter.size + statusFilter.size}
                     </span>
                   )}
-                </span>
+                </button>
                 {filtersActive && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <button
+                    type="button"
+                    onClick={() => {
                       setCategoryFilter(new Set());
                       setStatusFilter(new Set());
                     }}
-                    className="text-[11px] text-primary hover:underline normal-case tracking-normal cursor-pointer"
+                    className="text-[11px] text-primary hover:underline normal-case tracking-normal"
+                    aria-label="Clear all filters"
                   >
                     Clear
-                  </span>
+                  </button>
                 )}
-              </button>
+              </div>
               {filtersOpen && (
                 <div className="space-y-2 mt-2">
                   <div>
@@ -896,6 +909,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            <h2 className="sr-only">Developments in {city.name}</h2>
             {cityDiscussion && (
               <button
                 onClick={() => {
@@ -939,7 +953,20 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 </div>
               </button>
             )}
-            {filteredDevs.length === 0 ? (
+            {initialLoading ? (
+              <div className="divide-y divide-border" aria-hidden="true">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex gap-3 px-5 py-4">
+                    <Skeleton className="size-20 rounded-md shrink-0" />
+                    <div className="flex-1 space-y-2 py-1">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredDevs.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-muted-foreground">
                 {cityDevs.length === 0
                   ? `No developments here yet. Be the first to drop a pin in ${city.name}.`
@@ -1035,9 +1062,14 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                             </p>
                             <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground font-mono flex-wrap">
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded"
-                                style={{ backgroundColor: `${catColor}1a`, color: catColor }}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-foreground/80"
+                                style={{ backgroundColor: `${catColor}1a` }}
                               >
+                                <span
+                                  className="size-1.5 rounded-full"
+                                  style={{ backgroundColor: catColor }}
+                                  aria-hidden="true"
+                                />
                                 {categoryLabel(d.category)}
                               </span>
                               <span>·</span>
@@ -1390,6 +1422,9 @@ function DevelopmentDetail({
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(dev.title);
   const [editDescription, setEditDescription] = useState(dev.description);
@@ -1585,10 +1620,10 @@ function DevelopmentDetail({
   };
 
   const remove = async () => {
-    if (!confirm("Remove this development?")) return;
     const { error } = await supabase.from("developments").delete().eq("id", dev.id);
     if (error) return toast.error(error.message);
     toast.success("Removed");
+    setConfirmDeleteOpen(false);
     onChange();
   };
 
@@ -1607,7 +1642,6 @@ function DevelopmentDetail({
 
   const reject = async () => {
     if (!user) return;
-    const reason = prompt("Reason for rejection (optional):") ?? "";
     setApproving(true);
     const { error } = await supabase
       .from("developments")
@@ -1615,17 +1649,73 @@ function DevelopmentDetail({
         approval_status: "rejected",
         approved_by: user.id,
         approved_at: new Date().toISOString(),
-        rejection_reason: reason || null,
+        rejection_reason: rejectReason.trim() || null,
       })
       .eq("id", dev.id);
     setApproving(false);
     if (error) return toast.error(error.message);
     toast.success("Rejected");
+    setRejectOpen(false);
+    setRejectReason("");
     onChange();
   };
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent className="z-[1300]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this development?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes "{dev.title}" and its photos, and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={remove}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={rejectOpen}
+        onOpenChange={(o) => {
+          setRejectOpen(o);
+          if (!o) setRejectReason("");
+        }}
+      >
+        <DialogContent className="z-[1300]">
+          <DialogHeader>
+            <DialogTitle>Reject submission</DialogTitle>
+            <DialogDescription>
+              Optionally tell the submitter why — they'll see this on their rejected submission.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            maxLength={500}
+            rows={4}
+            placeholder="e.g. Duplicate of an existing pin, or not a real development."
+            aria-label="Reason for rejection"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRejectOpen(false)} disabled={approving}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={reject} disabled={approving} className="gap-1.5">
+              {approving && <Loader2 className="size-4 animate-spin" />}
+              Reject submission
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Sticky Back bar */}
       <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-3 bg-card/95 backdrop-blur border-b border-border">
         <button
@@ -1693,7 +1783,7 @@ function DevelopmentDetail({
 
       {dev.approval_status === "pending" && isApprover && (
         <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
             <Clock className="size-3.5" /> Awaiting your review
           </p>
           <div className="flex gap-2">
@@ -1701,7 +1791,7 @@ function DevelopmentDetail({
               {approving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
               Approve
             </Button>
-            <Button size="sm" variant="outline" disabled={approving} onClick={reject} className="gap-1.5 flex-1">
+            <Button size="sm" variant="outline" disabled={approving} onClick={() => setRejectOpen(true)} className="gap-1.5 flex-1">
               <XCircle className="size-3.5" />
               Reject
             </Button>
@@ -1709,7 +1799,7 @@ function DevelopmentDetail({
         </div>
       )}
       {dev.approval_status === "pending" && !isApprover && dev.user_id === user?.id && (
-        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 flex items-center gap-1.5">
           <Clock className="size-3.5 shrink-0" />
           Pending review by a city moderator or developer.
         </div>
@@ -1923,7 +2013,7 @@ function DevelopmentDetail({
                     <Pencil className="size-3.5" /> Edit
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={remove} className="gap-2 text-destructive focus:text-destructive">
+                  <DropdownMenuItem onClick={() => setConfirmDeleteOpen(true)} className="gap-2 text-destructive focus:text-destructive">
                     <Trash2 className="size-3.5" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -1934,9 +2024,9 @@ function DevelopmentDetail({
       )}
 
       <div className="mt-8 flex-1">
-        <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+        <h2 className="text-sm font-semibold flex items-center gap-2 mb-3">
           <MessageSquare className="size-4" /> Discussion ({comments.length})
-        </h3>
+        </h2>
         <ul className="space-y-3 mb-4">
           {comments.map((c) => (
             <li key={c.id} className="bg-secondary/60 rounded-md p-3">
