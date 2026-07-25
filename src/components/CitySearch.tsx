@@ -45,8 +45,12 @@ export function CitySearch({ onPick }: Props) {
   }, [query]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1a2b3c] via-[#1a2b3c] to-background flex flex-col">
-      <main className="flex-1 flex items-center justify-center px-5 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-[#16273a] via-[#1a2b3c] to-background flex flex-col relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 size-[460px] rounded-full bg-[#ffcc00]/10 blur-3xl"
+      />
+      <main className="relative flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-2xl">
           {/* Brand mark */}
           <div className="flex flex-col items-center text-center mb-8">
