@@ -68,7 +68,7 @@
 }
 
 :root {
-  --radius: 0.375rem;
+  --radius: 0.5rem;
   /* SiteWatch — Navy + Construction Yellow */
   --background: oklch(0.98 0.003 250);          /* near-white */
   --foreground: oklch(0.22 0.03 250);           /* deep navy ink */
@@ -212,9 +212,44 @@
   background-color: #ffcc00;
   color: #1a2b3c;
   font-weight: 700;
-  border: 1px solid #1a2b3c;
-  box-shadow: 0 1px 0 #1a2b3c, 0 4px 12px rgb(255 204 0 / 0.35);
+  border: 1px solid rgb(26 43 60 / 0.9);
+  box-shadow: 0 1px 2px rgb(26 43 60 / 0.15), 0 6px 16px rgb(255 204 0 / 0.4);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
-.btn-cta:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.btn-cta:active { transform: translateY(0); box-shadow: 0 1px 0 #1a2b3c, 0 2px 6px rgb(255 204 0 / 0.35); }
+.btn-cta:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgb(26 43 60 / 0.15), 0 10px 22px rgb(255 204 0 / 0.45);
+}
+.btn-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgb(26 43 60 / 0.2);
+}
+
+/* Soft, layered elevation for floating panels & cards (more refined than a single hard shadow). */
+.elevated {
+  box-shadow:
+    0 1px 2px rgb(16 24 40 / 0.04),
+    0 4px 12px rgb(16 24 40 / 0.08),
+    0 12px 28px rgb(16 24 40 / 0.06);
+}
+
+/* Slim, subtle scrollbars for in-app scroll regions. */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(100 116 139 / 0.4) transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: rgb(100 116 139 / 0.35);
+  border-radius: 9999px;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 0.55);
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -787,7 +787,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
         {sidebarMode === "collapsed" && (
           <button
             onClick={() => setSidebarMode("side")}
-            className="absolute top-4 left-4 z-[600] flex items-center gap-2 bg-card border border-border shadow-lg rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary transition"
+            className="absolute top-4 left-4 z-[600] flex items-center gap-2 bg-card border border-border elevated rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary transition"
             aria-label="Open developments list"
           >
             <PanelLeftOpen className="size-4" />
@@ -1011,7 +1011,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto scroll-slim">
             <h2 className="sr-only">Developments in {city.name}</h2>
             {cityDiscussion && (
               <button
@@ -1887,7 +1887,7 @@ function DevelopmentDetail({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scroll-slim">
         {/* Hero image — full width of the panel */}
         {dev.images.length > 0 && (
           <div className="w-full bg-secondary border-b border-border">
