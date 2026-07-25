@@ -71,6 +71,7 @@ import {
   ArrowLeft,
   Search,
   ArrowUpDown,
+  Bell,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -1529,6 +1530,8 @@ function DevelopmentDetail({
   const [editingCommentBody, setEditingCommentBody] = useState("");
   const [savingComment, setSavingComment] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -1712,6 +1715,51 @@ function DevelopmentDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dev.id]);
 
+  // Is the current user following this development?
+  useEffect(() => {
+    if (!user) {
+      setFollowing(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("development_id", dev.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setFollowing(!!data);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dev.id, user?.id]);
+
+  const toggleFollow = async () => {
+    if (!user) return toast.info("Sign in to follow this development");
+    setFollowBusy(true);
+    if (following) {
+      const { error } = await supabase
+        .from("subscriptions")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("development_id", dev.id);
+      setFollowBusy(false);
+      if (error) return toast.error(error.message);
+      setFollowing(false);
+      toast("Unfollowed — you won't get updates for this");
+    } else {
+      const { error } = await supabase
+        .from("subscriptions")
+        .insert({ user_id: user.id, development_id: dev.id });
+      setFollowBusy(false);
+      if (error) return toast.error(error.message);
+      setFollowing(true);
+      toast.success("Following — we'll notify you of updates");
+    }
+  };
+
   const post = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return toast.info("Sign in to comment");
@@ -1885,6 +1933,20 @@ function DevelopmentDetail({
           <ArrowLeft className="size-4" />
           <span className="truncate max-w-[200px]">Back to {cityName}</span>
         </button>
+        {user && (
+          <Button
+            size="sm"
+            variant={following ? "secondary" : "outline"}
+            onClick={toggleFollow}
+            disabled={followBusy}
+            aria-pressed={following}
+            className="ml-auto gap-1.5"
+            title={following ? "Stop getting updates" : "Get notified of updates"}
+          >
+            <Bell className={`size-3.5 ${following ? "fill-current" : ""}`} />
+            {following ? "Following" : "Follow"}
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">

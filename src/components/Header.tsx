@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { MapPin, ChevronDown, Shield, ClipboardList, Inbox } from "lucide-react";
 import type { City } from "@/lib/cities";
 import logoUrl from "@/assets/sitewatch-logo.png";
+import { NotificationBell } from "./NotificationBell";
 
 interface Props {
   city?: City | null;
@@ -54,6 +55,7 @@ export function Header({ city, onChangeCity, pendingCount = 0 }: Props) {
               <MapPin className="size-3.5" /> {city.name}
             </Button>
           )}
+          {user && <NotificationBell />}
           {user && (
             <Link
               to="/submissions"
