@@ -10,6 +10,17 @@ export const Route = createFileRoute("/api/public/hooks/import-osm")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Optional shared-secret gate. Backwards-compatible: only enforced once
+        // CRON_SECRET is set in the server environment AND the caller sends a matching
+        // `x-cron-secret` header. Until then the endpoint behaves exactly as before, so
+        // merging this never breaks the existing weekly cron.
+        const cronSecret = process.env.CRON_SECRET;
+        if (cronSecret && request.headers.get("x-cron-secret") !== cronSecret) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         let body: { city?: string } = {};
         try {
           body = (await request.json()) as { city?: string };
