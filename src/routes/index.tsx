@@ -334,7 +334,15 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       source_ref?: string | null;
     };
     const rows = (data ?? []) as RawRow[];
-    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    // Only enrich the developments we'll actually display (the current city) with author
+    // profiles and comment counts. Previously this pulled every profile and EVERY comment
+    // row in the entire database on every load and after every mutation — the dominant
+    // payload as data grows. Off-city rows are never rendered, so scoping is invisible.
+    const visibleRows = city
+      ? rows.filter((r) => inBounds(r.latitude, r.longitude, city.bounds))
+      : [];
+
+    const ids = Array.from(new Set(visibleRows.map((r) => r.user_id)));
     let profMap: Record<string, string> = {};
     if (ids.length) {
       const { data: profs } = await supabase
@@ -344,7 +352,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
 
-    const devIds = rows.map((r) => r.id);
+    const devIds = visibleRows.map((r) => r.id);
     const activity: Record<string, { last: string; count: number }> = {};
     if (devIds.length) {
       const { data: cs } = await supabase
