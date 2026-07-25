@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import { useEffect, useMemo, useState, lazy, Suspense, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,6 +252,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   const { user } = useAuth();
   const navigate = useNavigate();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [city, setCityState] = useState<City | null>(() => loadSavedCity());
   // Wrap setCity so picking a new city also reflects in the URL.
   const setCity = (next: City | null) => {
@@ -638,6 +640,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
     setPickTarget("submit");
     setPickMode(true);
     setSelected(null);
+    // On mobile the full-width list covers the map — reveal it so the pin can be tapped.
+    if (isMobile) setSidebarMode("collapsed");
     toast("Tap anywhere on the map to drop your pin");
   };
 
@@ -863,6 +867,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 : "w-full sm:w-[440px] lg:w-[520px] -translate-x-full"
           }`}
           aria-hidden={sidebarMode === "collapsed"}
+          inert={sidebarMode === "collapsed"}
         >
           {selected ? (
             <div
@@ -1863,7 +1868,7 @@ function DevelopmentDetail({
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background" role="region" aria-label={`${dev.title} details`}>
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent className="z-[1300]">
           <AlertDialogHeader>
