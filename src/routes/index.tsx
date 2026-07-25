@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
+import { Onboarding, CategoryLegend } from "@/components/Onboarding";
 import { AddressSearch } from "@/components/AddressSearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { PRESET_CITIES } from "@/lib/cities";
@@ -71,9 +72,11 @@ import {
   ArrowLeft,
   Search,
   ArrowUpDown,
+  HelpCircle,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
+const ONBOARD_KEY = "sitewatch:onboarded-v1";
 
 function loadReads(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -300,6 +303,27 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
 
   type SidebarMode = "collapsed" | "side" | "full";
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("side");
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+
+  // First-run induction: show the intro once, when a user first lands on a city.
+  useEffect(() => {
+    if (!city) return;
+    try {
+      if (!localStorage.getItem(ONBOARD_KEY)) setOnboardingOpen(true);
+    } catch {
+      // ignore
+    }
+  }, [city?.id]);
+
+  const closeOnboarding = () => {
+    setOnboardingOpen(false);
+    try {
+      localStorage.setItem(ONBOARD_KEY, "1");
+    } catch {
+      // ignore
+    }
+  };
   const [reads, setReads] = useState<Record<string, string>>(() => loadReads());
 
   // Filters (multi-select). Empty set = "all".
@@ -781,6 +805,35 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
               </button>
             </div>
           )}
+
+          {/* Map legend (collapsible) */}
+          <div className="absolute bottom-4 right-4 z-[500]">
+            {legendOpen ? (
+              <div className="bg-card/95 backdrop-blur border border-border rounded-md elevated p-3 w-52">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                    Project types
+                  </span>
+                  <button
+                    onClick={() => setLegendOpen(false)}
+                    aria-label="Hide legend"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                <CategoryLegend compact />
+              </div>
+            ) : (
+              <button
+                onClick={() => setLegendOpen(true)}
+                className="bg-card/95 backdrop-blur border border-border rounded-md elevated px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition inline-flex items-center gap-1.5"
+                aria-label="Show map key"
+              >
+                <MapPin className="size-3.5" /> Key
+              </button>
+            )}
+          </div>
         </main>
 
         {/* Floating sidebar toggle (visible when collapsed) */}
@@ -852,6 +905,14 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 )}
               </p>
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setOnboardingOpen(true)}
+                  className="text-muted-foreground hover:text-foreground transition p-1"
+                  aria-label="How SiteWatch works"
+                  title="How it works"
+                >
+                  <HelpCircle className="size-4" />
+                </button>
                 {/* Fullscreen toggle: hidden on mobile (sidebar is already full-width) */}
                 <button
                   onClick={() => setSidebarMode(sidebarMode === "full" ? "side" : "full")}
@@ -1204,6 +1265,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       </div>
 
       {/* Detail panel is rendered inline inside the sidebar above. */}
+      <Onboarding open={onboardingOpen} onClose={closeOnboarding} cityName={city.name} />
+
       <Dialog
         open={submitOpen}
         onOpenChange={(o) => {
