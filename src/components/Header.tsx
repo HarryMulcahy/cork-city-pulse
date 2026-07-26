@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { MapPin, ChevronDown, Shield, ClipboardList, Inbox } from "lucide-react";
+import { MapPin, ChevronDown, Shield, ClipboardList, Inbox, Heart } from "lucide-react";
 import type { City } from "@/lib/cities";
 import logoUrl from "@/assets/sitewatch-logo.png";
 import { NotificationBell } from "./NotificationBell";
@@ -22,7 +22,7 @@ export function Header({ city, onChangeCity, pendingCount = 0 }: Props) {
     : null;
 
   return (
-    <header className="border-b-2 border-[#ffcc00] bg-[#1a2b3c] text-white sticky top-0 z-[1000] shadow-md">
+    <header className="border-b-2 border-[#ffcc00] bg-gradient-to-b from-[#20344a] to-[#16273a] text-white sticky top-0 z-[1000] shadow-md">
       <div className="flex items-center justify-between px-5 py-2.5 gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="SiteWatch home">
@@ -79,6 +79,17 @@ export function Header({ city, onChangeCity, pendingCount = 0 }: Props) {
               </Link>
             </Button>
           )}
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-white hover:bg-white/10 hover:text-white px-2 sm:px-3"
+          >
+            <Link to="/support" aria-label="Support SiteWatch">
+              <Heart className="size-3.5" />
+              <span className="hidden sm:inline">Support</span>
+            </Link>
+          </Button>
           {user ? (
             <>
               <span className="text-white/70 hidden md:inline">
