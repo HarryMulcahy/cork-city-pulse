@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { ImagePlus, Loader2, X, Camera, Trash2, TrendingUp } from "lucide-react";
+import { ImagePlus, Loader2, X, Camera, Trash2, TrendingUp, ArrowLeftRight } from "lucide-react";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 
 const MILESTONES = [
   { value: "foundation", label: "Foundation" },
@@ -27,6 +28,7 @@ const MILESTONES = [
 const MILESTONE_LABEL: Record<string, string> = Object.fromEntries(
   MILESTONES.map((m) => [m.value, m.label]),
 );
+const MILESTONE_ORDER: string[] = MILESTONES.map((m) => m.value);
 
 interface ProgressUpdate {
   id: string;
@@ -57,6 +59,7 @@ export function ProgressTimeline({ developmentId }: { developmentId: string }) {
   const [caption, setCaption] = useState("");
   const [milestone, setMilestone] = useState("");
   const [posting, setPosting] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
 
   const load = async () => {
     const { data } = await supabase
@@ -163,6 +166,15 @@ export function ProgressTimeline({ developmentId }: { developmentId: string }) {
     setUpdates((prev) => prev.filter((u) => u.id !== id));
   };
 
+  const reachedIdx = updates.reduce((max, u) => {
+    const i = u.milestone ? MILESTONE_ORDER.indexOf(u.milestone) : -1;
+    return i > max ? i : max;
+  }, -1);
+  const photoUpdates = updates.filter((u) => u.images.length > 0);
+  const canCompare = photoUpdates.length >= 2;
+  const oldest = photoUpdates[photoUpdates.length - 1];
+  const newest = photoUpdates[0];
+
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-3">
@@ -176,6 +188,46 @@ export function ProgressTimeline({ developmentId }: { developmentId: string }) {
           </Button>
         ) : null}
       </div>
+
+      {reachedIdx >= 0 && (
+        <div className="mb-4 flex items-end gap-1" aria-label="Milestone progress">
+          {MILESTONE_ORDER.map((m, i) => (
+            <div key={m} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+              <span
+                className={`text-[8px] leading-tight text-center w-full truncate ${
+                  i <= reachedIdx ? "text-foreground font-semibold" : "text-muted-foreground"
+                }`}
+              >
+                {MILESTONE_LABEL[m]}
+              </span>
+              <span
+                className={`h-1.5 w-full rounded-full ${
+                  i < reachedIdx ? "bg-primary" : i === reachedIdx ? "bg-accent" : "bg-border"
+                }`}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canCompare && oldest && newest && (
+        <div className="mb-4">
+          <button
+            onClick={() => setShowCompare((v) => !v)}
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mb-2"
+          >
+            <ArrowLeftRight className="size-3.5" /> {showCompare ? "Hide" : "Compare"} before / after
+          </button>
+          {showCompare && (
+            <BeforeAfterSlider
+              beforeSrc={oldest.images[0]}
+              afterSrc={newest.images[0]}
+              beforeLabel={fmtDate(oldest.captured_at)}
+              afterLabel={fmtDate(newest.captured_at)}
+            />
+          )}
+        </div>
+      )}
 
       {open && user && (
         <div className="rounded-md border border-border bg-secondary/40 p-3 space-y-3 mb-4">
