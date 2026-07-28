@@ -87,6 +87,69 @@ export type Database = {
           },
         ]
       }
+      developments: {
+        Row: {
+          address: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          area_geojson: Json | null
+          category: Database["public"]["Enums"]["dev_category"]
+          created_at: string
+          description: string
+          id: string
+          images: string[]
+          latitude: number
+          longitude: number
+          rejection_reason: string | null
+          source: string
+          source_ref: string | null
+          status: Database["public"]["Enums"]["dev_status"]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          area_geojson?: Json | null
+          category?: Database["public"]["Enums"]["dev_category"]
+          created_at?: string
+          description: string
+          id?: string
+          images?: string[]
+          latitude: number
+          longitude: number
+          rejection_reason?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: Database["public"]["Enums"]["dev_status"]
+          title: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          area_geojson?: Json | null
+          category?: Database["public"]["Enums"]["dev_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          images?: string[]
+          latitude?: number
+          longitude?: number
+          rejection_reason?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: Database["public"]["Enums"]["dev_status"]
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
@@ -149,6 +212,24 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -177,102 +258,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      developments: {
-        Row: {
-          address: string | null
-          approval_status: string
-          approved_at: string | null
-          approved_by: string | null
-          area_geojson: Json | null
-          category: Database["public"]["Enums"]["dev_category"]
-          created_at: string
-          description: string
-          architect: string | null
-          completion_year: number | null
-          developer: string | null
-          floor_count: number | null
-          height_m: number | null
-          id: string
-          images: string[]
-          latitude: number
-          longitude: number
-          rejection_reason: string | null
-          source: string
-          source_ref: string | null
-          status: Database["public"]["Enums"]["dev_status"]
-          title: string
-          user_id: string
-        }
-        Insert: {
-          address?: string | null
-          approval_status?: string
-          approved_at?: string | null
-          approved_by?: string | null
-          area_geojson?: Json | null
-          category?: Database["public"]["Enums"]["dev_category"]
-          created_at?: string
-          description: string
-          architect?: string | null
-          completion_year?: number | null
-          developer?: string | null
-          floor_count?: number | null
-          height_m?: number | null
-          id?: string
-          images?: string[]
-          latitude: number
-          longitude: number
-          rejection_reason?: string | null
-          source?: string
-          source_ref?: string | null
-          status?: Database["public"]["Enums"]["dev_status"]
-          title: string
-          user_id: string
-        }
-        Update: {
-          address?: string | null
-          approval_status?: string
-          approved_at?: string | null
-          approved_by?: string | null
-          area_geojson?: Json | null
-          category?: Database["public"]["Enums"]["dev_category"]
-          created_at?: string
-          description?: string
-          architect?: string | null
-          completion_year?: number | null
-          developer?: string | null
-          floor_count?: number | null
-          height_m?: number | null
-          id?: string
-          images?: string[]
-          latitude?: number
-          longitude?: number
-          rejection_reason?: string | null
-          source?: string
-          source_ref?: string | null
-          status?: Database["public"]["Enums"]["dev_status"]
-          title?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          created_at: string
-          display_name: string
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          display_name: string
-          id: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          id?: string
-        }
-        Relationships: []
       }
       user_roles: {
         Row: {
