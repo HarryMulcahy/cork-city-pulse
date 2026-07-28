@@ -188,6 +188,11 @@ export type Database = {
           category: Database["public"]["Enums"]["dev_category"]
           created_at: string
           description: string
+          architect: string | null
+          completion_year: number | null
+          developer: string | null
+          floor_count: number | null
+          height_m: number | null
           id: string
           images: string[]
           latitude: number
@@ -208,6 +213,11 @@ export type Database = {
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
           description: string
+          architect?: string | null
+          completion_year?: number | null
+          developer?: string | null
+          floor_count?: number | null
+          height_m?: number | null
           id?: string
           images?: string[]
           latitude: number
@@ -228,6 +238,11 @@ export type Database = {
           category?: Database["public"]["Enums"]["dev_category"]
           created_at?: string
           description?: string
+          architect?: string | null
+          completion_year?: number | null
+          developer?: string | null
+          floor_count?: number | null
+          height_m?: number | null
           id?: string
           images?: string[]
           latitude?: number
