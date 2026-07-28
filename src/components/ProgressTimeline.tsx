@@ -315,7 +315,13 @@ export function ProgressTimeline({ developmentId }: { developmentId: string }) {
                         {MILESTONE_LABEL[u.milestone] ?? u.milestone}
                       </span>
                     )}
-                    <span className="text-[11px] text-muted-foreground">by {u.author ?? "anon"}</span>
+                    <Link
+                      to="/u/$userId"
+                      params={{ userId: u.user_id }}
+                      className="text-[11px] text-muted-foreground hover:text-primary hover:underline"
+                    >
+                      by {u.author ?? "anon"}
+                    </Link>
                   </div>
                   {canDelete && (
                     <button onClick={() => remove(u.id)} className="text-muted-foreground hover:text-destructive transition" aria-label="Delete update">

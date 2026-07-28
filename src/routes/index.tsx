@@ -2324,7 +2324,13 @@ function DevelopmentDetail({
           <div className="text-xs text-foreground/70 pt-2 border-t border-border flex items-center justify-between gap-3">
             <span>
               Submitted by{" "}
-              <span className="font-bold text-foreground">{dev.profiles?.display_name ?? "anon"}</span>{" "}
+              <Link
+                to="/u/$userId"
+                params={{ userId: dev.user_id }}
+                className="font-bold text-foreground hover:text-primary hover:underline"
+              >
+                {dev.profiles?.display_name ?? "anon"}
+              </Link>{" "}
               ·{" "}
               <span className="font-bold text-foreground font-mono">
                 {new Date(dev.created_at).toLocaleDateString()}
@@ -2372,7 +2378,13 @@ function DevelopmentDetail({
             return (
               <li key={c.id} className="bg-secondary/60 rounded-md p-3">
                 <div className="flex items-baseline justify-between gap-2 mb-1">
-                  <span className="text-xs font-semibold">{c.profiles?.display_name ?? "anon"}</span>
+                  <Link
+                    to="/u/$userId"
+                    params={{ userId: c.user_id }}
+                    className="text-xs font-semibold hover:text-primary hover:underline"
+                  >
+                    {c.profiles?.display_name ?? "anon"}
+                  </Link>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] text-muted-foreground font-mono">
                       {new Date(c.created_at).toLocaleDateString()}
