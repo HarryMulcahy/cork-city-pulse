@@ -40,6 +40,7 @@ import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } fro
 import { CitySearch } from "@/components/CitySearch";
 import { Onboarding, CategoryLegend } from "@/components/Onboarding";
 import { ProgressTimeline } from "@/components/ProgressTimeline";
+import { LatestProgressFeed } from "@/components/LatestProgressFeed";
 import { AddressSearch } from "@/components/AddressSearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { PRESET_CITIES } from "@/lib/cities";
@@ -76,6 +77,7 @@ import {
   ArrowUpDown,
   Bell,
   HelpCircle,
+  TrendingUp,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -309,6 +311,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("side");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState<"projects" | "latest">("projects");
 
   // First-run induction: show the intro once, when a user first lands on a city.
   useEffect(() => {
@@ -960,6 +963,30 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
               </p>
             )}
 
+            {/* View toggle: project list vs city-wide progress feed */}
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-md bg-secondary p-0.5">
+              <button
+                onClick={() => setSidebarView("projects")}
+                aria-pressed={sidebarView === "projects"}
+                className={`text-xs font-medium rounded px-2 py-1.5 transition ${
+                  sidebarView === "projects" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Projects
+              </button>
+              <button
+                onClick={() => setSidebarView("latest")}
+                aria-pressed={sidebarView === "latest"}
+                className={`text-xs font-medium rounded px-2 py-1.5 transition inline-flex items-center justify-center gap-1 ${
+                  sidebarView === "latest" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <TrendingUp className="size-3.5" /> Latest
+              </button>
+            </div>
+
+            {sidebarView === "projects" && (
+              <>
             {/* Search + sort */}
             <div className="mt-3 flex items-center gap-2">
               <div className="relative flex-1">
@@ -1077,9 +1104,22 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto scroll-slim">
+            {sidebarView === "latest" ? (
+              <LatestProgressFeed
+                developments={cityDevs}
+                onOpen={(id) => {
+                  const d = cityDevs.find((x) => x.id === id) ?? null;
+                  openDevelopmentRoute(d);
+                  if (sidebarMode === "full") setSidebarMode("side");
+                }}
+              />
+            ) : (
+              <>
             <h2 className="sr-only">Developments in {city.name}</h2>
             {cityDiscussion && (
               <button
@@ -1266,6 +1306,8 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                   );
                 })}
               </ul>
+            )}
+              </>
             )}
           </div>
         </aside>
