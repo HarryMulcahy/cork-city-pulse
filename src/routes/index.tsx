@@ -78,6 +78,7 @@ import {
   Bell,
   HelpCircle,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -190,6 +191,11 @@ interface Development {
   rejection_reason: string | null;
   source: string;
   source_ref: string | null;
+  height_m: number | null;
+  floor_count: number | null;
+  architect: string | null;
+  developer: string | null;
+  completion_year: number | null;
   last_activity_at: string;
   comments_count: number;
   profiles?: { display_name: string } | null;
@@ -1654,6 +1660,11 @@ function DevelopmentDetail({
   const [editAddress, setEditAddress] = useState(dev.address ?? "");
   const [editCategory, setEditCategory] = useState<Category>(dev.category);
   const [editStatus, setEditStatus] = useState<Status>(dev.status);
+  const [editHeight, setEditHeight] = useState(dev.height_m != null ? String(dev.height_m) : "");
+  const [editFloors, setEditFloors] = useState(dev.floor_count != null ? String(dev.floor_count) : "");
+  const [editArchitect, setEditArchitect] = useState(dev.architect ?? "");
+  const [editDeveloper, setEditDeveloper] = useState(dev.developer ?? "");
+  const [editYear, setEditYear] = useState(dev.completion_year != null ? String(dev.completion_year) : "");
   const [editShape, setEditShape] = useState<ShapeData | null>(dev.area);
   const [editPoint, setEditPoint] = useState<LatLng>({ lat: dev.latitude, lng: dev.longitude });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -1670,6 +1681,11 @@ function DevelopmentDetail({
     setEditAddress(dev.address ?? "");
     setEditCategory(dev.category);
     setEditStatus(dev.status);
+    setEditHeight(dev.height_m != null ? String(dev.height_m) : "");
+    setEditFloors(dev.floor_count != null ? String(dev.floor_count) : "");
+    setEditArchitect(dev.architect ?? "");
+    setEditDeveloper(dev.developer ?? "");
+    setEditYear(dev.completion_year != null ? String(dev.completion_year) : "");
     setEditShape(dev.area);
     setEditPoint({ lat: dev.latitude, lng: dev.longitude });
     setExistingImages(dev.images);
@@ -1784,6 +1800,11 @@ function DevelopmentDetail({
         address: editAddress.trim().slice(0, 200) || null,
         category: editCategory,
         status: editStatus,
+        height_m: editHeight.trim() && Number.isFinite(Number(editHeight)) ? Number(editHeight) : null,
+        floor_count: editFloors.trim() && Number.isInteger(Number(editFloors)) ? Number(editFloors) : null,
+        architect: editArchitect.trim().slice(0, 120) || null,
+        developer: editDeveloper.trim().slice(0, 120) || null,
+        completion_year: editYear.trim() && Number.isInteger(Number(editYear)) ? Number(editYear) : null,
         images: finalImages,
         latitude: editPoint.lat,
         longitude: editPoint.lng,
@@ -2172,6 +2193,47 @@ function DevelopmentDetail({
         </div>
       )}
 
+      {dev.source !== "general" &&
+        (dev.height_m || dev.floor_count || dev.architect || dev.developer || dev.completion_year) && (
+          <div className="mt-3 rounded-md border border-border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-foreground/60 mb-2 flex items-center gap-1.5">
+              <Building2 className="size-3.5" /> Specifications
+            </p>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              {dev.height_m ? (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Height</dt>
+                  <dd className="font-semibold font-mono">{dev.height_m} m</dd>
+                </div>
+              ) : null}
+              {dev.floor_count ? (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Floors</dt>
+                  <dd className="font-semibold font-mono">{dev.floor_count}</dd>
+                </div>
+              ) : null}
+              {dev.completion_year ? (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Completion</dt>
+                  <dd className="font-semibold font-mono">{dev.completion_year}</dd>
+                </div>
+              ) : null}
+              {dev.architect ? (
+                <div className="flex justify-between gap-2 col-span-2">
+                  <dt className="text-muted-foreground shrink-0">Architect</dt>
+                  <dd className="font-semibold text-right truncate">{dev.architect}</dd>
+                </div>
+              ) : null}
+              {dev.developer ? (
+                <div className="flex justify-between gap-2 col-span-2">
+                  <dt className="text-muted-foreground shrink-0">Developer</dt>
+                  <dd className="font-semibold text-right truncate">{dev.developer}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+        )}
+
       {editing && isOwner ? (
         <form onSubmit={saveEdit} className="mt-4 space-y-4">
           <div className="space-y-1.5">
@@ -2212,6 +2274,19 @@ function DevelopmentDetail({
           <div className="space-y-1.5">
             <Label htmlFor="ed">Description</Label>
             <Textarea id="ed" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} required rows={5} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Building2 className="size-3.5" /> Specifications (optional)
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="number" inputMode="decimal" value={editHeight} onChange={(e) => setEditHeight(e.target.value)} placeholder="Height (m)" aria-label="Height in metres" />
+              <Input type="number" inputMode="numeric" value={editFloors} onChange={(e) => setEditFloors(e.target.value)} placeholder="Floors" aria-label="Floor count" />
+              <Input value={editArchitect} onChange={(e) => setEditArchitect(e.target.value)} maxLength={120} placeholder="Architect" aria-label="Architect" />
+              <Input value={editDeveloper} onChange={(e) => setEditDeveloper(e.target.value)} maxLength={120} placeholder="Developer" aria-label="Developer" />
+              <Input type="number" inputMode="numeric" value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder="Completion year" aria-label="Completion year" className="col-span-2" />
+            </div>
           </div>
 
           <div className="space-y-1.5">
