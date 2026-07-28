@@ -41,6 +41,7 @@ import { CitySearch } from "@/components/CitySearch";
 import { Onboarding, CategoryLegend } from "@/components/Onboarding";
 import { ProgressTimeline } from "@/components/ProgressTimeline";
 import { LatestProgressFeed } from "@/components/LatestProgressFeed";
+import { RankingsPanel } from "@/components/RankingsPanel";
 import { AddressSearch } from "@/components/AddressSearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { PRESET_CITIES } from "@/lib/cities";
@@ -317,7 +318,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("side");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
-  const [sidebarView, setSidebarView] = useState<"projects" | "latest">("projects");
+  const [sidebarView, setSidebarView] = useState<"projects" | "latest" | "ranks">("projects");
 
   // First-run induction: show the intro once, when a user first lands on a city.
   useEffect(() => {
@@ -970,7 +971,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
             )}
 
             {/* View toggle: project list vs city-wide progress feed */}
-            <div className="mt-3 grid grid-cols-2 gap-1 rounded-md bg-secondary p-0.5">
+            <div className="mt-3 grid grid-cols-3 gap-1 rounded-md bg-secondary p-0.5">
               <button
                 onClick={() => setSidebarView("projects")}
                 aria-pressed={sidebarView === "projects"}
@@ -988,6 +989,15 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                 }`}
               >
                 <TrendingUp className="size-3.5" /> Latest
+              </button>
+              <button
+                onClick={() => setSidebarView("ranks")}
+                aria-pressed={sidebarView === "ranks"}
+                className={`text-xs font-medium rounded px-2 py-1.5 transition inline-flex items-center justify-center gap-1 ${
+                  sidebarView === "ranks" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Building2 className="size-3.5" /> Ranks
               </button>
             </div>
 
@@ -1117,6 +1127,15 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
           <div className="flex-1 overflow-y-auto scroll-slim">
             {sidebarView === "latest" ? (
               <LatestProgressFeed
+                developments={cityDevs}
+                onOpen={(id) => {
+                  const d = cityDevs.find((x) => x.id === id) ?? null;
+                  openDevelopmentRoute(d);
+                  if (sidebarMode === "full") setSidebarMode("side");
+                }}
+              />
+            ) : sidebarView === "ranks" ? (
+              <RankingsPanel
                 developments={cityDevs}
                 onOpen={(id) => {
                   const d = cityDevs.find((x) => x.id === id) ?? null;
