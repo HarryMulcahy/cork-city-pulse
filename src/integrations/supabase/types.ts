@@ -93,10 +93,15 @@ export type Database = {
           approval_status: string
           approved_at: string | null
           approved_by: string | null
+          architect: string | null
           area_geojson: Json | null
           category: Database["public"]["Enums"]["dev_category"]
+          completion_year: number | null
           created_at: string
           description: string
+          developer: string | null
+          floor_count: number | null
+          height_m: number | null
           id: string
           images: string[]
           latitude: number
@@ -113,10 +118,15 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
+          architect?: string | null
           area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
+          completion_year?: number | null
           created_at?: string
           description: string
+          developer?: string | null
+          floor_count?: number | null
+          height_m?: number | null
           id?: string
           images?: string[]
           latitude: number
@@ -133,10 +143,15 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
+          architect?: string | null
           area_geojson?: Json | null
           category?: Database["public"]["Enums"]["dev_category"]
+          completion_year?: number | null
           created_at?: string
           description?: string
+          developer?: string | null
+          floor_count?: number | null
+          height_m?: number | null
           id?: string
           images?: string[]
           latitude?: number
