@@ -1,14 +1,16 @@
 -- ============================================================================
--- SiteWatch — APPLY ALL PENDING MIGRATIONS (paste this whole file into
--- Supabase → SQL Editor → New query → Run).  Safe to run ONCE, in this order.
+-- SiteWatch — APPLY ALL PENDING MIGRATIONS (IDEMPOTENT — safe to run repeatedly).
+-- Paste this whole file into Supabase -> SQL Editor -> New query -> Run.
 --
--- This turns today's staged work LIVE: follow/notify + notification bell,
--- comment moderation, moderator-edit hardening, the OSM queue clear, and the
--- construction Progress diary. (The optional CRON_SECRET import-lock migration
--- is intentionally NOT included.)
+-- Each policy is dropped-if-exists before being (re)created, tables use
+-- 'if not exists', and functions use 'create or replace' -- so it doesn't matter
+-- which pieces were already applied; running it just reconciles everything.
 --
--- This file is NOT a numbered migration, so Lovable/Supabase won't auto-run it.
+-- Turns live: follow/notify + notification bell, comment moderation, moderator-edit
+-- hardening, the OSM queue clear, and the construction Progress diary + Latest feed.
+-- (The optional CRON_SECRET import-lock migration is intentionally NOT included.)
 -- ============================================================================
+
 
 -- ==================== 20260725072608_follow_and_notifications ====================
 
@@ -29,10 +31,13 @@ create table if not exists public.subscriptions (
 );
 alter table public.subscriptions enable row level security;
 
+drop policy if exists "Users can view their own subscriptions" on public.subscriptions;
 create policy "Users can view their own subscriptions"
   on public.subscriptions for select using (auth.uid() = user_id);
+drop policy if exists "Users can follow (insert own subscription)" on public.subscriptions;
 create policy "Users can follow (insert own subscription)"
   on public.subscriptions for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can unfollow (delete own subscription)" on public.subscriptions;
 create policy "Users can unfollow (delete own subscription)"
   on public.subscriptions for delete using (auth.uid() = user_id);
 
@@ -53,10 +58,13 @@ create table if not exists public.notifications (
 alter table public.notifications enable row level security;
 
 -- Recipients can read / mark-read / delete their own; inserts happen only via triggers.
+drop policy if exists "Users can view their own notifications" on public.notifications;
 create policy "Users can view their own notifications"
   on public.notifications for select using (auth.uid() = user_id);
+drop policy if exists "Users can update their own notifications" on public.notifications;
 create policy "Users can update their own notifications"
   on public.notifications for update using (auth.uid() = user_id);
+drop policy if exists "Users can delete their own notifications" on public.notifications;
 create policy "Users can delete their own notifications"
   on public.notifications for delete using (auth.uid() = user_id);
 
@@ -143,6 +151,7 @@ create trigger trg_notify_on_development_change
   after update on public.developments
   for each row execute function public.notify_on_development_change();
 
+
 -- ==================== 20260725083045_scope_approver_edits ====================
 
 -- Least-privilege for moderators: an approver acting on someone else's development may
@@ -207,6 +216,7 @@ $$;
 
 -- Trigger already exists from the earlier migration; create-or-replace above is enough.
 
+
 -- ==================== 20260725083046_clear_pending_osm_queue ====================
 
 -- One-time cleanup: clear the review queue of auto-imported OSM sites that were never
@@ -216,6 +226,7 @@ $$;
 delete from public.developments
 where source = 'osm'
   and approval_status = 'pending';
+
 
 -- ==================== 20260728094718_development_updates ====================
 
@@ -237,12 +248,16 @@ create table if not exists public.development_updates (
 );
 alter table public.development_updates enable row level security;
 
+drop policy if exists "Progress updates are viewable by everyone" on public.development_updates;
 create policy "Progress updates are viewable by everyone"
   on public.development_updates for select using (true);
+drop policy if exists "Authenticated users can post updates" on public.development_updates;
 create policy "Authenticated users can post updates"
   on public.development_updates for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can edit their own updates" on public.development_updates;
 create policy "Users can edit their own updates"
   on public.development_updates for update using (auth.uid() = user_id);
+drop policy if exists "Owners and approvers can delete updates" on public.development_updates;
 create policy "Owners and approvers can delete updates"
   on public.development_updates for delete
   using (auth.uid() = user_id or public.is_approver(auth.uid()));
@@ -282,11 +297,13 @@ create trigger trg_notify_on_progress_update
   after insert on public.development_updates
   for each row execute function public.notify_on_progress_update();
 
+
 -- ============================================================================
--- VERIFY (optional): each of these should return a row after running the above.
+-- VERIFY (optional): each row should show a non-null table/trigger name.
 -- ============================================================================
-select 'subscriptions table'      as check, to_regclass('public.subscriptions')::text        as found
-union all select 'notifications table', to_regclass('public.notifications')::text
-union all select 'development_updates table', to_regclass('public.development_updates')::text
-union all select 'moderation trigger', tgname::text from pg_trigger where tgname = 'trg_enforce_development_moderation'
-union all select 'progress-notify trigger', tgname::text from pg_trigger where tgname = 'trg_notify_on_progress_update';
+select 'subscriptions table'       as check, to_regclass('public.subscriptions')::text        as found
+union all select 'notifications table',       to_regclass('public.notifications')::text
+union all select 'development_updates table',  to_regclass('public.development_updates')::text
+union all select 'moderation trigger',         tgname::text from pg_trigger where tgname = 'trg_enforce_development_moderation'
+union all select 'progress-notify trigger',    tgname::text from pg_trigger where tgname = 'trg_notify_on_progress_update';
+
