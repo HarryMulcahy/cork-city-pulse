@@ -12,17 +12,28 @@ import {
 interface Notif {
   id: string;
   development_id: string | null;
-  kind: "comment" | "status" | "approval";
-  data: { dev_title?: string; from?: string; to?: string } | null;
+  actor_id: string | null;
+  kind: "comment" | "status" | "approval" | "update" | "follow";
+  data: { dev_title?: string; from?: string; to?: string; follower_name?: string } | null;
   created_at: string;
   read_at: string | null;
 }
 
 function describe(n: Notif): string {
   const title = n.data?.dev_title ?? "a development";
-  if (n.kind === "comment") return `New comment on “${title}”`;
-  if (n.kind === "approval") return `“${title}” was ${n.data?.to ?? "updated"}`;
-  return `“${title}” is now ${(n.data?.to ?? "updated").replace(/_/g, " ")}`;
+  switch (n.kind) {
+    case "comment":
+      return `New comment on “${title}”`;
+    case "update":
+      return `New progress update on “${title}”`;
+    case "approval":
+      return `“${title}” was ${n.data?.to ?? "updated"}`;
+    case "follow":
+      return `${n.data?.follower_name ?? "Someone"} started following you`;
+    case "status":
+    default:
+      return `“${title}” is now ${(n.data?.to ?? "updated").replace(/_/g, " ")}`;
+  }
 }
 
 function timeAgo(iso: string): string {
@@ -60,6 +71,22 @@ export function NotificationBell() {
     };
   }, [user?.id]);
 
+  // Live updates: push new notifications into the bell as they arrive.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`notifs:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => setItems((prev) => [payload.new as Notif, ...prev].slice(0, 30)),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   if (!user) return null;
 
   const unread = items.filter((n) => !n.read_at).length;
@@ -71,7 +98,11 @@ export function NotificationBell() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: now() } : x)));
       await supabase.from("notifications").update({ read_at: now() }).eq("id", n.id);
     }
-    if (n.development_id) navigate({ to: "/", search: { dev: n.development_id } });
+    if (n.kind === "follow" && n.actor_id) {
+      navigate({ to: "/u/$userId", params: { userId: n.actor_id } });
+    } else if (n.development_id) {
+      navigate({ to: "/", search: { dev: n.development_id } });
+    }
   };
 
   const markAll = async () => {

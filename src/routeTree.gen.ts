@@ -9,13 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as SubmissionsRouteImport } from './routes/submissions'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UUserIdRouteImport } from './routes/u.$userId'
 import { Route as CityCitySlugChar123ProjectSlugChar125RouteImport } from './routes/city.$citySlug.{-$projectSlug}'
 import { Route as ApiPublicHooksImportOsmRouteImport } from './routes/api/public/hooks/import-osm'
 
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmissionsRoute = SubmissionsRouteImport.update({
   id: '/submissions',
   path: '/submissions',
@@ -36,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UUserIdRoute = UUserIdRouteImport.update({
+  id: '/u/$userId',
+  path: '/u/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CityCitySlugChar123ProjectSlugChar125Route =
   CityCitySlugChar123ProjectSlugChar125RouteImport.update({
     id: '/city/$citySlug/{-$projectSlug}',
@@ -53,6 +65,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/support': typeof SupportRoute
+  '/u/$userId': typeof UUserIdRoute
   '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
@@ -61,6 +75,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/support': typeof SupportRoute
+  '/u/$userId': typeof UUserIdRoute
   '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
@@ -70,6 +86,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/submissions': typeof SubmissionsRoute
+  '/support': typeof SupportRoute
+  '/u/$userId': typeof UUserIdRoute
   '/city/$citySlug/{-$projectSlug}': typeof CityCitySlugChar123ProjectSlugChar125Route
   '/api/public/hooks/import-osm': typeof ApiPublicHooksImportOsmRoute
 }
@@ -80,6 +98,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/submissions'
+    | '/support'
+    | '/u/$userId'
     | '/city/$citySlug/{-$projectSlug}'
     | '/api/public/hooks/import-osm'
   fileRoutesByTo: FileRoutesByTo
@@ -88,6 +108,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/submissions'
+    | '/support'
+    | '/u/$userId'
     | '/city/$citySlug/{-$projectSlug}'
     | '/api/public/hooks/import-osm'
   id:
@@ -96,6 +118,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/submissions'
+    | '/support'
+    | '/u/$userId'
     | '/city/$citySlug/{-$projectSlug}'
     | '/api/public/hooks/import-osm'
   fileRoutesById: FileRoutesById
@@ -105,12 +129,21 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   SubmissionsRoute: typeof SubmissionsRoute
+  SupportRoute: typeof SupportRoute
+  UUserIdRoute: typeof UUserIdRoute
   CityCitySlugChar123ProjectSlugChar125Route: typeof CityCitySlugChar123ProjectSlugChar125Route
   ApiPublicHooksImportOsmRoute: typeof ApiPublicHooksImportOsmRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submissions': {
       id: '/submissions'
       path: '/submissions'
@@ -139,6 +172,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$userId': {
+      id: '/u/$userId'
+      path: '/u/$userId'
+      fullPath: '/u/$userId'
+      preLoaderRoute: typeof UUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/city/$citySlug/{-$projectSlug}': {
       id: '/city/$citySlug/{-$projectSlug}'
       path: '/city/$citySlug/{-$projectSlug}'
@@ -161,6 +201,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   SubmissionsRoute: SubmissionsRoute,
+  SupportRoute: SupportRoute,
+  UUserIdRoute: UUserIdRoute,
   CityCitySlugChar123ProjectSlugChar125Route:
     CityCitySlugChar123ProjectSlugChar125Route,
   ApiPublicHooksImportOsmRoute: ApiPublicHooksImportOsmRoute,
@@ -168,3 +210,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
