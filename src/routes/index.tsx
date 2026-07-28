@@ -39,6 +39,7 @@ import {
 import { CATEGORIES, STATUSES, CATEGORY_COLORS, type Category, type Status } from "@/lib/constants";
 import { CitySearch } from "@/components/CitySearch";
 import { Onboarding, CategoryLegend } from "@/components/Onboarding";
+import { ProgressTimeline } from "@/components/ProgressTimeline";
 import { AddressSearch } from "@/components/AddressSearch";
 import { loadSavedCity, saveCity, clearSavedCity, citySlug, projectSlug, projectSlugIdTail, type City } from "@/lib/cities";
 import { PRESET_CITIES } from "@/lib/cities";
@@ -2309,6 +2310,12 @@ function DevelopmentDetail({
               </DropdownMenu>
             )}
           </div>
+        </div>
+      )}
+
+      {dev.source !== "general" && (
+        <div className="mt-8">
+          <ProgressTimeline developmentId={dev.id} />
         </div>
       )}
 

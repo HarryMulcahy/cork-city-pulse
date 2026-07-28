@@ -46,6 +46,47 @@ export type Database = {
           },
         ]
       }
+      development_updates: {
+        Row: {
+          caption: string | null
+          captured_at: string
+          created_at: string
+          development_id: string
+          id: string
+          images: string[]
+          milestone: string | null
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          captured_at?: string
+          created_at?: string
+          development_id: string
+          id?: string
+          images?: string[]
+          milestone?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          captured_at?: string
+          created_at?: string
+          development_id?: string
+          id?: string
+          images?: string[]
+          milestone?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_updates_development_id_fkey"
+            columns: ["development_id"]
+            isOneToOne: false
+            referencedRelation: "developments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
