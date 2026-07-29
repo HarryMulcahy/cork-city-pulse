@@ -2357,7 +2357,7 @@ function DevelopmentDetail({
               <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase tracking-wider"><XCircle className="size-3 mr-1" />Rejected</Badge>
             )}
           </div>
-          <h1 className="text-3xl leading-tight font-bold tracking-tight">{dev.title}</h1>
+          <h1 className="text-3xl sm:text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance">{dev.title}</h1>
           {dev.address && (
             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
               <MapPin className="size-3.5" /> {dev.address}
@@ -2426,11 +2426,11 @@ function DevelopmentDetail({
 
       {dev.source !== "general" &&
         (dev.height_m || dev.floor_count || dev.architect || dev.developer || dev.completion_year) && (
-          <div className="mt-3 rounded-md border border-border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-foreground/60 mb-2 flex items-center gap-1.5">
+          <div className="mt-4 overflow-hidden rounded-md border border-border bg-card">
+            <p className="flex items-center gap-1.5 border-b border-border bg-secondary/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/60">
               <Building2 className="size-3.5" /> Specifications
             </p>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 text-xs">
               {dev.height_m ? (
                 <div className="flex justify-between gap-2">
                   <dt className="text-muted-foreground">Height</dt>

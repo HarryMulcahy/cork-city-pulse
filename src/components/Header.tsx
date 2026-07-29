@@ -33,7 +33,7 @@ export function Header({ city, onChangeCity, pendingCount = 0 }: Props) {
               height={32}
               className="size-8 rounded-sm bg-white/95 p-0.5"
             />
-            <span className="text-xl font-bold tracking-tight">
+            <span className="font-[family-name:var(--font-display)] text-xl font-bold tracking-[-0.02em]">
               Site<span className="text-[#ffcc00]">Watch</span>
             </span>
           </Link>
