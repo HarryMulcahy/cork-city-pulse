@@ -106,6 +106,19 @@ interface Props {
   drawPoints?: LatLng[];
   onDrawPoint?: (lat: number, lng: number) => void;
   onDrawFinish?: () => void;
+  /** Changes whenever the map's visible area changes (e.g. sidebar open/close) so it recentres. */
+  resizeKey?: string | number;
+}
+
+/** Recompute Leaflet's size + recentre after the container's visible area changes. */
+function InvalidateOnResize({ trigger }: { trigger: string | number }) {
+  const map = useMap();
+  useEffect(() => {
+    // Wait out the container's CSS transition (~300ms), then recentre in the new area.
+    const t = setTimeout(() => map.invalidateSize({ pan: true }), 320);
+    return () => clearTimeout(t);
+  }, [trigger, map]);
+  return null;
 }
 
 function FlyTo({ id, points }: { id?: string | null; points: DevPoint[] }) {
@@ -268,6 +281,7 @@ export function CorkMap({
   drawPoints = [],
   onDrawPoint,
   onDrawFinish,
+  resizeKey,
 }: Props) {
   const cursor = drawMode || pickMode ? "crosshair" : undefined;
   const drawColor = CATEGORY_COLORS[drawCategory] ?? CATEGORY_COLORS.other;
@@ -315,6 +329,7 @@ export function CorkMap({
         onMapClick={() => setOpenCluster(null)}
       />
       <FlyTo id={selectedId} points={developments} />
+      <InvalidateOnResize trigger={resizeKey ?? ""} />
 
       {/* Existing area outlines / lines */}
       {developments.map((d) => {

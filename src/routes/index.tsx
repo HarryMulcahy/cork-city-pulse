@@ -738,7 +738,11 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
       <Header city={city} onChangeCity={handleChangeCity} pendingCount={myPendingCount} />
       <div className="flex-1 relative min-h-0">
         {/* Full-screen Map */}
-        <main className="absolute inset-0">
+        <main
+          className={`absolute inset-0 transition-[left] duration-300 ease-out ${
+            sidebarMode === "side" ? "sm:left-[440px] lg:left-[520px]" : ""
+          }`}
+        >
           <Suspense
             fallback={<div className="w-full h-full bg-secondary animate-pulse" />}
           >
@@ -746,6 +750,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
               center={city.center}
               bounds={city.bounds}
               cityKey={city.id}
+              resizeKey={sidebarMode}
               developments={filteredDevs.map((d) => ({
                 id: d.id,
                 latitude: d.latitude,
