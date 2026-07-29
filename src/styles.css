@@ -252,3 +252,65 @@
 .scroll-slim::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ============================================================
+   CitySearch landing — "Architectural Editorial" + skyline base
+   ============================================================ */
+
+/* Warm construction-yellow horizon glow, low behind the silhouette. */
+.sw-horizon {
+  background: radial-gradient(
+    120% 100% at 50% 100%,
+    rgb(255 204 0 / 0.16) 0%,
+    rgb(255 204 0 / 0.06) 34%,
+    transparent 64%
+  );
+  filter: blur(2px);
+}
+
+/* The crane's warning light breathes. */
+.sw-beacon {
+  filter: drop-shadow(0 0 7px rgb(255 204 0 / 0.85));
+  animation: sw-beacon-blink 3.4s ease-in-out infinite;
+}
+@keyframes sw-beacon-blink {
+  0%, 100% { opacity: 0.3; }
+  8% { opacity: 1; }
+  16% { opacity: 0.5; }
+}
+
+/* One authored entrance: the headline "constructs" upward from a visible
+   baseline (blur + lift + clip), then the yellow underline draws in. Elements
+   default to their final composed state; motion only plays for motion-OK users
+   so reduced-motion and pre-hydration get the static shot for free. */
+@media (prefers-reduced-motion: no-preference) {
+  .sw-enter .sw-headline {
+    animation: sw-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .sw-enter .sw-underline {
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: sw-underline-draw 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
+  }
+  @keyframes sw-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+      filter: blur(6px);
+      clip-path: inset(0 0 42% 0);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  @keyframes sw-underline-draw {
+    to { transform: scaleX(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-beacon { animation: none; opacity: 0.85; }
+}
