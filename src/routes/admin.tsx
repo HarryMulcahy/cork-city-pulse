@@ -271,7 +271,7 @@ function AdminPage() {
                   <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium text-sm">{r.display_name ?? r.user_id.slice(0, 8)}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono">
+                      <p className="text-[11px] text-muted-foreground">
                         Granted {new Date(r.created_at).toLocaleDateString()}
                       </p>
                     </div>

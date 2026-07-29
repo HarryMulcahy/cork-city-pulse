@@ -1183,7 +1183,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                     <p className="text-xs text-muted-foreground line-clamp-1">
                       General discussion · no specific development needed
                     </p>
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground font-mono">
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                       {cityDiscussion.comments_count > 0 && (
                         <span className="flex items-center gap-1">
                           <MessageSquare className="size-3" />
@@ -1306,7 +1306,7 @@ export function HomePage({ devSearchParam, routeCitySlug, routeProjectSlug }: Ho
                             <p className={`text-xs line-clamp-2 ${unread && !isSelected ? "text-foreground/80" : "text-muted-foreground"}`}>
                               {d.description}
                             </p>
-                            <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground font-mono flex-wrap">
+                            <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground flex-wrap">
                               <span
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-foreground/80"
                                 style={{ backgroundColor: `${catColor}1a` }}
@@ -1556,7 +1556,7 @@ function SubmitForm({
         <Label>Site shape (optional)</Label>
         {shape ? (
           <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
-            <span className="flex items-center gap-2 font-mono">
+            <span className="flex items-center gap-2">
               {shape.shape === "line" ? <Spline className="size-3.5 text-primary" /> : <Hexagon className="size-3.5 text-primary" />}
               {shape.shape === "line" ? "Line" : "Outline"} · {shape.points.length} points
             </span>
@@ -1582,7 +1582,7 @@ function SubmitForm({
             </Button>
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground font-mono">
+        <p className="text-[11px] text-muted-foreground">
           Outlines suit buildings or sites · lines suit roads, rail, cycle paths.
         </p>
       </div>
@@ -1635,7 +1635,7 @@ function SubmitForm({
         {loading && <Loader2 className="size-4 animate-spin" />}
         {loading ? (draft.files.length > 0 ? "Uploading photos…" : "Submitting…") : "Submit for review"}
       </Button>
-      <p className="text-[11px] text-muted-foreground text-center font-mono">
+      <p className="text-[11px] text-muted-foreground text-center">
         Submissions are reviewed by city moderators or developers before appearing on the public map.
       </p>
     </form>
@@ -2098,7 +2098,7 @@ function DevelopmentDetail({
             {c.profiles?.display_name ?? "anon"}
           </Link>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] text-muted-foreground font-mono">
+            <span className="text-[10px] text-muted-foreground">
               {new Date(c.created_at).toLocaleDateString()}
             </span>
             {(isCommentOwner || isApprover) && !isEditing && (
@@ -2537,7 +2537,7 @@ function DevelopmentDetail({
             <Label>Site shape</Label>
             {editShape ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-xs">
-                <span className="flex items-center gap-2 font-mono">
+                <span className="flex items-center gap-2">
                   {editShape.shape === "line" ? <Spline className="size-3.5 text-primary" /> : <Hexagon className="size-3.5 text-primary" />}
                   {editShape.shape === "line" ? "Line" : "Outline"} · {editShape.points.length} points
                 </span>
@@ -2585,7 +2585,7 @@ function DevelopmentDetail({
                 {newPreviews.map((src, i) => (
                   <div key={src} className="relative group aspect-square rounded-md overflow-hidden border border-primary/60">
                     <img src={src} alt="" className="h-full w-full object-cover" />
-                    <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono">
+                    <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded">
                       new
                     </span>
                     <button
@@ -2638,7 +2638,7 @@ function DevelopmentDetail({
                 {dev.profiles?.display_name ?? "anon"}
               </Link>{" "}
               ·{" "}
-              <span className="font-bold text-foreground font-mono">
+              <span className="font-bold text-foreground">
                 {new Date(dev.created_at).toLocaleDateString()}
               </span>
             </span>

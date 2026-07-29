@@ -108,7 +108,7 @@ function SupportPage() {
                 </span>
                 <div>
                   <p className="font-semibold leading-tight">{t.name}</p>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-mono">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                     {t.price}
                   </p>
                 </div>
@@ -138,7 +138,7 @@ function SupportPage() {
         </div>
 
         {!BASE && (
-          <p className="text-center text-[11px] text-muted-foreground font-mono">
+          <p className="text-center text-[11px] text-muted-foreground">
             Support links aren't configured yet — set VITE_SUPPORT_URL to your Stripe / Ko-fi /
             BuyMeACoffee link to enable checkout.
           </p>

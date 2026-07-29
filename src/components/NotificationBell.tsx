@@ -159,7 +159,7 @@ export function NotificationBell() {
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs leading-snug text-foreground">{describe(n)}</span>
-                    <span className="block text-[10px] text-muted-foreground font-mono mt-0.5">
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">
                       {timeAgo(n.created_at)}
                     </span>
                   </span>

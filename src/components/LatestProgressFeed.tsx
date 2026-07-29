@@ -124,7 +124,7 @@ export function LatestProgressFeed({ developments, onOpen }: Props) {
                 )}
               </div>
               {u.caption && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{u.caption}</p>}
-              <p className="text-[11px] text-muted-foreground font-mono mt-1 flex items-center gap-1.5">
+              <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
                 <TrendingUp className="size-3" />
                 {u.author ?? "anon"} · {timeAgo(u.created_at)}
               </p>

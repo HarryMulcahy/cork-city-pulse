@@ -74,7 +74,7 @@ export function AddressSearch({ onPick, autoFocus }: Props) {
           ))}
         </ul>
       )}
-      <p className="mt-1.5 text-[10px] text-muted-foreground font-mono">Powered by OpenStreetMap Nominatim</p>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">Powered by OpenStreetMap Nominatim</p>
     </div>
   );
 }

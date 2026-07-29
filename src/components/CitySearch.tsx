@@ -64,10 +64,10 @@ export function CitySearch({ onPick }: Props) {
             <p className="mt-4 text-[11px] uppercase tracking-[0.3em] text-[#ffcc00] font-semibold">
               SiteWatch · Citizen Planning Map
             </p>
-            <h1 className="mt-2 text-4xl sm:text-5xl font-bold leading-[1.05] text-white">
+            <h1 className="mt-2 text-4xl sm:text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-white text-balance">
               Pick a city to begin.
             </h1>
-            <p className="mt-3 text-white/75 max-w-md">
+            <p className="mt-3 text-white/75 max-w-md text-pretty leading-relaxed">
               Track and discuss developments in any city. Search below or jump into a popular one.
             </p>
           </div>
@@ -132,7 +132,7 @@ export function CitySearch({ onPick }: Props) {
                       className="justify-start h-auto py-3 px-3 flex-col items-start gap-0.5 hover:border-[#ffcc00] hover:bg-[#ffcc00]/10"
                     >
                       <span className="font-bold">{c.name}</span>
-                      <span className="text-[11px] text-muted-foreground font-mono">
+                      <span className="text-[11px] text-muted-foreground truncate">
                         {c.country}
                       </span>
                     </Button>
@@ -143,7 +143,7 @@ export function CitySearch({ onPick }: Props) {
           </div>
         </div>
       </main>
-      <footer className="px-5 py-4 text-center text-[11px] text-white/60 font-mono">
+      <footer className="px-5 py-4 text-center text-[11px] text-white/60">
         City search powered by OpenStreetMap Nominatim
       </footer>
     </div>

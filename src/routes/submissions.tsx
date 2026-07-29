@@ -183,7 +183,7 @@ function SubmissionsPage() {
                         {statusBadge(r.approval_status)}
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{r.description}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono flex-wrap">
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
                         <span className="px-1.5 py-0.5 rounded text-foreground/80 inline-flex items-center gap-1" style={{ backgroundColor: `${color}1a` }}>
                           <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
                           {r.category}

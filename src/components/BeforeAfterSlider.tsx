@@ -28,10 +28,10 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel = "Before",
         style={{ left: `${pos}%` }}
         aria-hidden="true"
       />
-      <span className="absolute top-2 left-2 text-[10px] font-mono bg-foreground/70 text-background px-1.5 py-0.5 rounded pointer-events-none">
+      <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider font-semibold bg-foreground/70 text-background px-1.5 py-0.5 rounded pointer-events-none">
         {beforeLabel}
       </span>
-      <span className="absolute top-2 right-2 text-[10px] font-mono bg-foreground/70 text-background px-1.5 py-0.5 rounded pointer-events-none">
+      <span className="absolute top-2 right-2 text-[10px] uppercase tracking-wider font-semibold bg-foreground/70 text-background px-1.5 py-0.5 rounded pointer-events-none">
         {afterLabel}
       </span>
       <input

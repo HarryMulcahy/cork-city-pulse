@@ -303,7 +303,7 @@ export function ProgressTimeline({ developmentId }: { developmentId: string }) {
                 <span className="absolute -left-[7px] mt-1 size-3 rounded-full bg-primary border-2 border-background" aria-hidden="true" />
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold font-mono">{fmtDate(u.captured_at)}</span>
+                    <span className="text-xs font-semibold">{fmtDate(u.captured_at)}</span>
                     {u.milestone && (
                       <span
                         className={`text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
