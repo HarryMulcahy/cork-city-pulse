@@ -2,13 +2,12 @@
 -- SiteWatch — APPLY ALL PENDING MIGRATIONS (IDEMPOTENT — safe to run repeatedly).
 -- Paste this whole file into Supabase -> SQL Editor -> New query -> Run.
 --
--- Each policy is dropped-if-exists before being (re)created, tables use
--- 'if not exists', and functions use 'create or replace' -- so it doesn't matter
--- which pieces were already applied; running it just reconciles everything.
+-- Policies are dropped-if-exists before (re)creating; tables use 'if not exists';
+-- functions use 'create or replace' — so re-running just reconciles everything.
 --
 -- Turns live: follow/notify + realtime bell, comment moderation, moderator-edit
--- hardening, the OSM queue clear, the Progress diary + Latest feed, follow-people +
--- profiles, and building specs (height/floors/architect/developer/year).
+-- hardening, OSM queue clear, Progress diary + Latest feed, follow-people + profiles,
+-- building specs, and threaded + upvotable comments.
 -- (The optional CRON_SECRET import-lock migration is intentionally NOT included.)
 -- ============================================================================
 
@@ -429,12 +428,42 @@ end;
 $$;
 
 
+-- ==================== 20260729073255_comment_threads_and_votes ====================
+
+-- Threaded + upvotable comments.
+
+-- Reply threading: a comment can point at a parent comment.
+alter table public.comments add column if not exists parent_id uuid references public.comments(id) on delete cascade;
+create index if not exists comments_parent_idx on public.comments (parent_id);
+
+-- Upvotes: one per (comment, user).
+create table if not exists public.comment_votes (
+  id uuid primary key default gen_random_uuid(),
+  comment_id uuid not null references public.comments(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (comment_id, user_id)
+);
+alter table public.comment_votes enable row level security;
+
+drop policy if exists "Comment votes are viewable by everyone" on public.comment_votes;
+create policy "Comment votes are viewable by everyone" on public.comment_votes for select using (true);
+drop policy if exists "Users can upvote (insert own)" on public.comment_votes;
+create policy "Users can upvote (insert own)" on public.comment_votes for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can remove their own upvote" on public.comment_votes;
+create policy "Users can remove their own upvote" on public.comment_votes for delete using (auth.uid() = user_id);
+
+create index if not exists comment_votes_comment_idx on public.comment_votes (comment_id);
+
+
 -- ============================================================================
--- VERIFY (optional): each row should show a non-null table/column/trigger.
+-- VERIFY (optional): each row should show a non-null name.
 -- ============================================================================
-select 'development_updates table' as check, to_regclass('public.development_updates')::text as found
-union all select 'follows table', to_regclass('public.follows')::text
+select 'follows table' as check, to_regclass('public.follows')::text as found
+union all select 'development_updates table', to_regclass('public.development_updates')::text
+union all select 'comment_votes table', to_regclass('public.comment_votes')::text
+union all select 'comments.parent_id column',
+  (select 'parent_id' from information_schema.columns where table_name='comments' and column_name='parent_id')
 union all select 'developments.height_m column',
-  (select 'height_m' from information_schema.columns where table_name='developments' and column_name='height_m')
-union all select 'follow-notify trigger', tgname::text from pg_trigger where tgname = 'trg_notify_on_follow';
+  (select 'height_m' from information_schema.columns where table_name='developments' and column_name='height_m');
 
