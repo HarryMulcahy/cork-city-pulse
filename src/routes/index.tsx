@@ -80,6 +80,8 @@ import {
   HelpCircle,
   TrendingUp,
   Building2,
+  ChevronUp,
+  Reply,
 } from "lucide-react";
 
 const READ_STORAGE_KEY = "city-builds:dev-reads-v1";
@@ -207,6 +209,7 @@ interface Comment {
   user_id: string;
   body: string;
   created_at: string;
+  parent_id: string | null;
   profiles?: { display_name: string } | null;
 }
 
@@ -1671,6 +1674,11 @@ function DevelopmentDetail({
   const [editingCommentBody, setEditingCommentBody] = useState("");
   const [savingComment, setSavingComment] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [votes, setVotes] = useState<Record<string, number>>({});
+  const [myVotes, setMyVotes] = useState<Set<string>>(new Set());
+  const [commentSort, setCommentSort] = useState<"top" | "new">("top");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1864,6 +1872,25 @@ function DevelopmentDetail({
       profMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]));
     }
     setComments(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] ? { display_name: profMap[r.user_id] } : null })));
+
+    const commentIds = rows.map((r) => r.id);
+    if (commentIds.length) {
+      const { data: vs } = await supabase
+        .from("comment_votes")
+        .select("comment_id, user_id")
+        .in("comment_id", commentIds);
+      const counts: Record<string, number> = {};
+      const mine = new Set<string>();
+      for (const v of vs ?? []) {
+        counts[v.comment_id] = (counts[v.comment_id] ?? 0) + 1;
+        if (user && v.user_id === user.id) mine.add(v.comment_id);
+      }
+      setVotes(counts);
+      setMyVotes(mine);
+    } else {
+      setVotes({});
+      setMyVotes(new Set());
+    }
   };
 
   useEffect(() => {
@@ -1962,6 +1989,39 @@ function DevelopmentDetail({
     load();
   };
 
+  const toggleVote = async (commentId: string) => {
+    if (!user) return toast.info("Sign in to upvote");
+    const voted = myVotes.has(commentId);
+    setMyVotes((prev) => {
+      const n = new Set(prev);
+      if (voted) n.delete(commentId);
+      else n.add(commentId);
+      return n;
+    });
+    setVotes((prev) => ({ ...prev, [commentId]: Math.max(0, (prev[commentId] ?? 0) + (voted ? -1 : 1)) }));
+    if (voted) {
+      await supabase.from("comment_votes").delete().eq("comment_id", commentId).eq("user_id", user.id);
+    } else {
+      await supabase.from("comment_votes").insert({ comment_id: commentId, user_id: user.id });
+    }
+  };
+
+  const postReply = async (parentId: string) => {
+    if (!user) return;
+    const text = replyBody.trim();
+    if (text.length < 2) return;
+    const { error } = await supabase.from("comments").insert({
+      development_id: dev.id,
+      user_id: user.id,
+      body: text.slice(0, 1000),
+      parent_id: parentId,
+    });
+    if (error) return toast.error(error.message);
+    setReplyBody("");
+    setReplyTo(null);
+    load();
+  };
+
   const remove = async () => {
     const { error } = await supabase.from("developments").delete().eq("id", dev.id);
     if (error) return toast.error(error.message);
@@ -2001,6 +2061,153 @@ function DevelopmentDetail({
     setRejectOpen(false);
     setRejectReason("");
     onChange();
+  };
+
+  // Build the comment tree: top-level (sorted) + replies grouped by parent.
+  const repliesByParent: Record<string, Comment[]> = {};
+  for (const c of comments) {
+    if (c.parent_id) (repliesByParent[c.parent_id] ??= []).push(c);
+  }
+  Object.values(repliesByParent).forEach((arr) =>
+    arr.sort((a, b) => (a.created_at < b.created_at ? -1 : 1)),
+  );
+  const topLevel = comments
+    .filter((c) => !c.parent_id)
+    .sort((a, b) => {
+      if (commentSort === "new") return a.created_at < b.created_at ? 1 : -1;
+      const va = votes[a.id] ?? 0;
+      const vb = votes[b.id] ?? 0;
+      if (vb !== va) return vb - va;
+      return a.created_at < b.created_at ? -1 : 1;
+    });
+
+  const renderComment = (c: Comment, isReply: boolean) => {
+    const isCommentOwner = user?.id === c.user_id;
+    const isEditing = editingCommentId === c.id;
+    const count = votes[c.id] ?? 0;
+    const voted = myVotes.has(c.id);
+    const replies = repliesByParent[c.id] ?? [];
+    return (
+      <li key={c.id} className="bg-secondary/60 rounded-md p-3">
+        <div className="flex items-baseline justify-between gap-2 mb-1">
+          <Link
+            to="/u/$userId"
+            params={{ userId: c.user_id }}
+            className="text-xs font-semibold hover:text-primary hover:underline"
+          >
+            {c.profiles?.display_name ?? "anon"}
+          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {new Date(c.created_at).toLocaleDateString()}
+            </span>
+            {(isCommentOwner || isApprover) && !isEditing && (
+              <div className="flex items-center gap-1">
+                {isCommentOwner && (
+                  <button
+                    type="button"
+                    onClick={() => startEditComment(c)}
+                    className="text-muted-foreground hover:text-foreground transition"
+                    aria-label="Edit comment"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDeleteCommentId(c.id)}
+                  className="text-muted-foreground hover:text-destructive transition"
+                  aria-label={isCommentOwner ? "Delete comment" : "Remove comment (moderator)"}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        {isEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={editingCommentBody}
+              onChange={(e) => setEditingCommentBody(e.target.value)}
+              maxLength={1000}
+              rows={3}
+              aria-label="Edit comment"
+            />
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={saveCommentEdit} disabled={savingComment || editingCommentBody.trim().length < 2}>
+                {savingComment ? "Saving…" : "Save"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditingCommentId(null);
+                  setEditingCommentBody("");
+                }}
+                disabled={savingComment}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
+        )}
+        {!isEditing && (
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => toggleVote(c.id)}
+              aria-pressed={voted}
+              className={`inline-flex items-center gap-1 text-xs transition ${
+                voted ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ChevronUp className="size-3.5" />
+              {count > 0 ? count : "Upvote"}
+            </button>
+            {!isReply && user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyTo(replyTo === c.id ? null : c.id);
+                  setReplyBody("");
+                }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                <Reply className="size-3.5" /> Reply
+              </button>
+            )}
+          </div>
+        )}
+        {replyTo === c.id && user && (
+          <div className="mt-2 space-y-2">
+            <Textarea
+              value={replyBody}
+              onChange={(e) => setReplyBody(e.target.value)}
+              maxLength={1000}
+              rows={2}
+              placeholder="Write a reply…"
+              aria-label="Reply"
+            />
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => postReply(c.id)} disabled={replyBody.trim().length < 2}>
+                Reply
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setReplyTo(null); setReplyBody(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        {replies.length > 0 && (
+          <ul className="mt-3 space-y-2 pl-3 border-l-2 border-border">
+            {replies.map((r) => renderComment(r, true))}
+          </ul>
+        )}
+      </li>
+    );
   };
 
   return (
@@ -2467,89 +2674,34 @@ function DevelopmentDetail({
       )}
 
       <div className="mt-8 flex-1">
-        <h2 className="text-sm font-semibold flex items-center gap-2 mb-3">
-          <MessageSquare className="size-4" /> Discussion ({comments.length})
-        </h2>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <MessageSquare className="size-4" /> Discussion ({comments.length})
+          </h2>
+          {topLevel.length > 1 && (
+            <div className="flex text-[11px] rounded-md bg-secondary p-0.5">
+              <button
+                onClick={() => setCommentSort("top")}
+                aria-pressed={commentSort === "top"}
+                className={`px-2 py-1 rounded transition ${commentSort === "top" ? "bg-card shadow-sm text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Top
+              </button>
+              <button
+                onClick={() => setCommentSort("new")}
+                aria-pressed={commentSort === "new"}
+                className={`px-2 py-1 rounded transition ${commentSort === "new" ? "bg-card shadow-sm text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Newest
+              </button>
+            </div>
+          )}
+        </div>
         <ul className="space-y-3 mb-4">
-          {comments.map((c) => {
-            const isCommentOwner = user?.id === c.user_id;
-            const isEditing = editingCommentId === c.id;
-            return (
-              <li key={c.id} className="bg-secondary/60 rounded-md p-3">
-                <div className="flex items-baseline justify-between gap-2 mb-1">
-                  <Link
-                    to="/u/$userId"
-                    params={{ userId: c.user_id }}
-                    className="text-xs font-semibold hover:text-primary hover:underline"
-                  >
-                    {c.profiles?.display_name ?? "anon"}
-                  </Link>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {new Date(c.created_at).toLocaleDateString()}
-                    </span>
-                    {(isCommentOwner || isApprover) && !isEditing && (
-                      <div className="flex items-center gap-1">
-                        {isCommentOwner && (
-                          <button
-                            type="button"
-                            onClick={() => startEditComment(c)}
-                            className="text-muted-foreground hover:text-foreground transition"
-                            aria-label="Edit comment"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setDeleteCommentId(c.id)}
-                          className="text-muted-foreground hover:text-destructive transition"
-                          aria-label={isCommentOwner ? "Delete comment" : "Remove comment (moderator)"}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={editingCommentBody}
-                      onChange={(e) => setEditingCommentBody(e.target.value)}
-                      maxLength={1000}
-                      rows={3}
-                      aria-label="Edit comment"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={saveCommentEdit}
-                        disabled={savingComment || editingCommentBody.trim().length < 2}
-                      >
-                        {savingComment ? "Saving…" : "Save"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingCommentId(null);
-                          setEditingCommentBody("");
-                        }}
-                        disabled={savingComment}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
-                )}
-              </li>
-            );
-          })}
-          {comments.length === 0 && (
+          {topLevel.length === 0 ? (
             <li className="text-xs text-muted-foreground italic">No comments yet — start the conversation.</li>
+          ) : (
+            topLevel.map((c) => renderComment(c, false))
           )}
         </ul>
 
